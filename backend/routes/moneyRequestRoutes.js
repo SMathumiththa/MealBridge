@@ -36,7 +36,6 @@ const { upload } = require("../config/cloudinary");
 
 const uploadFields = upload.fields([
   { name: 'needStatement', maxCount: 1 },
-  { name: 'registrationCertificate', maxCount: 1 },
   { name: 'bankDetails', maxCount: 1 },
   { name: 'usageReport', maxCount: 1 },
   { name: 'image', maxCount: 1 }

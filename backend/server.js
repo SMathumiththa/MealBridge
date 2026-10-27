@@ -220,4 +220,7 @@ const startServer = async () => {
   });
 };
 
-startServer();
+startServer().catch((error) => {
+  console.error(`❌ Backend startup aborted: ${error.message}`);
+  process.exitCode = 1;
+});

@@ -2,21 +2,21 @@ import { useEffect, useState } from 'react';
 import { getLeaderboard } from '../api/auth';
 import { COLORS } from '../theme';
 
-export default function Leaderboard({ limit = 10 }) {
+export default function Leaderboard({ limit = 10, role = "donor" }) {
   const [items, setItems] = useState([]);
   useEffect(() => {
     let mounted = true;
-    getLeaderboard().then(res => {
+    getLeaderboard(role).then(res => {
       if (res?.success && mounted) setItems(res.data || []);
     }).catch(() => {});
     return () => { mounted = false; };
-  }, []);
+  }, [role]);
 
   return (
     <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h4 style={{ margin: 0, color: 'white' }}>🏆 Leaderboard</h4>
-        <small style={{ color: 'rgba(255,255,255,0.6)' }}>Top donors</small>
+        <small style={{ color: 'rgba(255,255,255,0.6)' }}>{role === "volunteer" ? "Top volunteers" : "Top donors"}</small>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {items.slice(0, limit).map((u, i) => (

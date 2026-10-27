@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import DashboardLayout from "../components/DashboardLayout";
 import StatCard from "../components/StatCard";
 import RatingStars from "../components/RatingStars";
@@ -10,7 +11,7 @@ import { getNotifications, markNotificationsAsRead } from "../api/notification";
 import { getRequests, updateRequest } from "../api/request";
 import { getDonorRatingStats, getMySubmittedFeedbacks, getMyReceivedFeedbacks, getMyPendingFeedbacks } from "../api/feedback";
 import { getMoneyRequests } from "../api/moneyRequest";
-import { addMoneyDonationFeedback } from "../api/moneyDonation";
+import { addMoneyDonationFeedback, getMyMoneyDonations } from "../api/moneyDonation";
 import DonationCheckoutModal from "../components/DonationCheckoutModal";
 import { COLORS } from "../theme";
 import toast from "react-hot-toast";
@@ -21,6 +22,7 @@ import io from "socket.io-client";
 const FOOD_CATEGORIES = ["Cooked Food", "Raw Vegetables", "Grains & Rice", "Dairy", "Fruits", "Bakery", "Other"];
 
 function DonorHome({ setActive, user, stats, recentDonations, ratingStats, theme }) {
+  const { t } = useTranslation();
   const isLight = theme === "light";
   const textColor = isLight ? "#111" : "white";
   const mutedColor = isLight ? "rgba(15,23,42,0.65)" : "rgba(255,255,255,0.65)";
@@ -30,18 +32,18 @@ function DonorHome({ setActive, user, stats, recentDonations, ratingStats, theme
   const panelSubText = isLight ? "rgba(15,23,42,0.6)" : "rgba(255,255,255,0.55)";
   const greeting = (() => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
+    if (hour < 12) return t("common.morning");
+    if (hour < 17) return t("common.afternoon");
+    return t("common.evening");
   })();
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center", background: pageBg, padding: isLight ? "28px 20px 0" : 0, borderRadius: isLight ? 24 : 0 }}>
       <h2 style={{ color: textColor, fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{greeting}, {user?.name || "Donor"}! 👋</h2>
-      <p style={{ color: mutedColor, fontSize: 16, marginBottom: 32 }}>Your generosity is making a difference every day.</p>
+      <p style={{ color: mutedColor, fontSize: 16, marginBottom: 32 }}>{t("common.donorWelcome")}</p>
 
       <div style={{ display: "flex", gap: 16, marginBottom: 36, flexWrap: "wrap", justifyContent: "center", textAlign: "left" }}>
-        <StatCard icon="🏆" label="My Badge" value={user?.badge || "Newcomer"} sub={`${user?.points || 0} Points`} />
+        <StatCard icon="🏆" label={t("common.newcomer")} value={user?.badge || t("common.newcomer")} sub={`${user?.points || 0} ${t("common.points")}`} />
         <StatCard icon="🍱" label="Total Donated" value={stats.totalDonated || 0} sub="donations posted" />
         <StatCard icon="👥" label="People Helped" value={stats.peopleHelped || 0} sub="people fed" />
         <StatCard icon="✅" label="Completed" value={stats.completed || 0} sub="fully collected" />
@@ -75,23 +77,23 @@ function DonorHome({ setActive, user, stats, recentDonations, ratingStats, theme
       )}
 
       <div style={{ marginBottom: 36 }}>
-        <h3 style={{ color: panelText, fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Quick Actions</h3>
+        <h3 style={{ color: panelText, fontSize: 18, fontWeight: 600, marginBottom: 16 }}>{t("common.quickActions")}</h3>
         <div style={{ display: "flex", gap: 16, justifyContent: "center" }}>
           <button onClick={() => setActive("donate")} style={{
             background: COLORS.amber, color: COLORS.forest, border: "none", borderRadius: 12,
             padding: "14px 28px", fontWeight: 700, fontSize: 16, cursor: "pointer", boxShadow: "0 4px 15px rgba(232,146,58,0.3)"
-          }}>➕ Post Donation</button>
+          }}>➕ {t("common.postDonation")}</button>
           <button onClick={() => setActive("myDonations")} style={{
             background: "transparent", color: COLORS.amber, border: `2px solid ${COLORS.amber}`,
             borderRadius: 12, padding: "12px 28px", fontWeight: 600, fontSize: 16, cursor: "pointer",
-          }}>📦 View Donations</button>
+          }}>📦 {t("common.viewDonations")}</button>
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, textAlign: "left" }}>
         <div>
-          <h3 style={{ color: panelText, fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Recent Activity</h3>
-          {recentDonations.length === 0 ? <p style={{ color: isLight ? "rgba(15,23,42,0.55)" : "rgba(255,255,255,0.4)" }}>No recent donations.</p> : null}
+          <h3 style={{ color: panelText, fontSize: 18, fontWeight: 600, marginBottom: 16 }}>{t("common.recentActivity")}</h3>
+          {recentDonations.length === 0 ? <p style={{ color: isLight ? "rgba(15,23,42,0.55)" : "rgba(255,255,255,0.4)" }}>{t("common.noRecentDonations")}</p> : null}
           {recentDonations.slice(0, 3).map(d => (
             <div key={d._id} style={{
               background: isLight ? "rgba(255,255,255,0.94)" : "rgba(255,255,255,0.06)", border: isLight ? "1px solid rgba(15,23,42,0.12)" : `1px solid rgba(255,255,255,0.15)`, borderRadius: 12,
@@ -180,13 +182,25 @@ function DonateForm({ setActive, reloadDonations, theme }) {
     try {
       setLoading(true);
       const formData = new FormData();
+      const address = `${place}, ${district}`;
+      let donationLocation = { address };
+      if (navigator.geolocation) {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 2500, maximumAge: 300000 });
+          });
+          donationLocation = { address, lat: position.coords.latitude, lng: position.coords.longitude };
+        } catch {
+          // Address-only locations remain valid when GPS permission is unavailable.
+        }
+      }
       formData.append("foodName", form.name);
       formData.append("description", `${form.category}: ${form.description}`);
       formData.append("foodType", form.foodType);
       formData.append("quantity", form.qty);
       formData.append("unit", form.unit);
       formData.append("peopleServed", form.peopleServed);
-      formData.append("location", `${place}, ${district}`);
+      formData.append("location", JSON.stringify(donationLocation));
       formData.append("expiryTime", form.expiry);
       formData.append("isEmergency", form.isEmergency);
       if (form.pickup) formData.append("pickupTime", form.pickup);
@@ -310,6 +324,7 @@ function DonateForm({ setActive, reloadDonations, theme }) {
         
         <div style={{ gridColumn: "1/-1" }}>
           <LocationSelector 
+            theme={theme}
             district={district} 
             setDistrict={(val) => { setDistrict(val); setFormErrors(prev => ({ ...prev, district: "" })); }} 
             place={place} 
@@ -394,7 +409,7 @@ const DonationTimeline = ({ status, theme }) => {
   );
 };
 
-function MyDonations({ donations, onDelete, theme }) {
+function MyDonations({ donations, moneyDonations = [], onDelete, theme }) {
   const isLight = theme === "light";
   const textColor = isLight ? "#111" : "white";
   const mutedColor = isLight ? "rgba(15,23,42,0.65)" : "rgba(255,255,255,0.55)";
@@ -405,7 +420,29 @@ function MyDonations({ donations, onDelete, theme }) {
     <div>
       <div style={{ background: isLight ? "rgba(255,255,255,0.92)" : "transparent", borderRadius: 24, padding: 24, color: textColor }}>
         <h2 style={{ color: textColor, fontSize: 26, fontWeight: 600, margin: "0 0 16px" }}>📦 My Donations</h2>
-        <p style={{ color: mutedColor, fontSize: 14, marginBottom: 20 }}>{donations.length} total donations</p>
+        <p style={{ color: mutedColor, fontSize: 14, marginBottom: 20 }}>{donations.length + moneyDonations.length} total donations</p>
+      {moneyDonations.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <h3 style={{ color: textColor, fontSize: 18, margin: "0 0 14px" }}>💰 Financial Donations</h3>
+          {moneyDonations.map(donation => {
+            const statusColor = donation.paymentStatus === "success" ? "#2ecc71" : donation.paymentStatus === "cancelled" ? "#e74c3c" : COLORS.amber;
+            return (
+              <div key={donation._id} style={{ background: cardBg, border: borderColor, borderRadius: 12, padding: "16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                <div style={{ width: 48, height: 48, borderRadius: 10, background: isLight ? "rgba(15,23,42,0.05)" : "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 23 }}>💰</div>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ color: textColor, fontWeight: 700, fontSize: 15 }}>LKR {Number(donation.amount || 0).toLocaleString()}</div>
+                  <div style={{ color: mutedColor, fontSize: 12, marginTop: 3 }}>{donation.moneyRequestId?.purpose || "Fundraiser"} • {donation.donationMethod || "Online"}</div>
+                  <div style={{ color: mutedColor, fontSize: 11, marginTop: 3 }}>{new Date(donation.createdAt).toLocaleString()}</div>
+                </div>
+                <span style={{ color: statusColor, background: `${statusColor}20`, padding: "5px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{donation.paymentStatus === "success" ? "Confirmed" : donation.paymentStatus}</span>
+                {donation.receiptUrl && donation.paymentStatus === "success" && (
+                  <a href={donation.receiptUrl} target="_blank" rel="noreferrer" style={{ color: isLight ? "#2563eb" : COLORS.mint, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>📄 Download Receipt</a>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
       {donations.length === 0 ? <p style={{ color: isLight ? "rgba(15,23,42,0.75)" : "white" }}>You haven't posted any donations yet.</p> : null}
       
       {donations.map(d => (
@@ -445,8 +482,14 @@ function MyDonations({ donations, onDelete, theme }) {
                       const res = await downloadDonationReceipt(d._id);
                       if (res.success && res.data.receiptUrl) {
                         window.open(res.data.receiptUrl, "_blank");
+                        const link = document.createElement("a");
+                        link.href = res.data.receiptUrl;
+                        link.setAttribute("download", `Donation_Certificate_${d._id}.pdf`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
                       }
-                    } catch (err) {
+                    } catch {
                       toast.error("Certificate not available yet.");
                     }
                   }}
@@ -585,7 +628,13 @@ function RequestsPage({ requests, onRequestAction, theme, user }) {
               {activeChat?.requestId === r._id && (
                 <div style={{ marginTop: 4, marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                   <button onClick={() => setActiveChat(null)} style={{ background: "transparent", color: "#e74c3c", border: "none", cursor: "pointer", fontSize: 12, marginBottom: 8, fontWeight: 600 }}>✖ Close Chat</button>
-                  <ChatWidget requestId={r._id} currentUserId={user?._id} currentUserRole="donor" />
+                  <ChatWidget
+                    requestId={r._id}
+                    currentUserId={user?._id}
+                    currentUserRole="donor"
+                    donorLocation={r.foodId?.location}
+                    ngoLocation={r.ngoId?.officeLocation}
+                  />
                 </div>
               )}
             </React.Fragment>
@@ -787,7 +836,7 @@ function ProfilePage({ user, setUser, theme }) {
 }
 
 // ─── PAGE: FEEDBACKS ──────────────────────────────────────────────────────────
-function FeedbacksPage({ theme, refreshTrigger }) {
+function FeedbacksPage({ theme, refreshTrigger, activePage }) {
   const [activeTab, setActiveTab] = useState("pending");
   const [pending, setPending] = useState([]);
   const [submitted, setSubmitted] = useState([]);
@@ -799,7 +848,7 @@ function FeedbacksPage({ theme, refreshTrigger }) {
 
   const isLight = theme === "light";
   const textColor = isLight ? "#111" : "white";
-  const mutedColor = isLight ? "rgba(15,23,42,0.65)" : "rgba(255,255,255,0.55)";
+  const mutedColor = isLight ? "rgba(15,23,42,0.65)" : "rgba(255,255,255,0.65)";
 
   const fetchFeedbacks = async () => {
     setLoading(true);
@@ -811,7 +860,7 @@ function FeedbacksPage({ theme, refreshTrigger }) {
       if (resSub.success) setSubmitted(resSub.data || []);
       
       const resRec = await getMyReceivedFeedbacks();
-      if (resRec.success) setReceived(resRec.data.received || []);
+      if (resRec.success) setReceived(resRec.data || []);
     } catch (err) {
       console.error("Error fetching feedbacks", err);
     } finally {
@@ -820,8 +869,10 @@ function FeedbacksPage({ theme, refreshTrigger }) {
   };
 
   useEffect(() => {
-    fetchFeedbacks();
-  }, [refreshTrigger]);
+    if (activePage === "feedbacks") {
+      fetchFeedbacks();
+    }
+  }, [refreshTrigger, activePage]);
 
   const handleSubmitFeedback = async () => {
     if (!feedbackDonationId || feedbackData.rating === 0) return;
@@ -1154,13 +1205,13 @@ function FundraisersPage({ fundRequests, reload, theme, user }) {
               <div style={{ minWidth: 0 }}>
                 <h3 style={{ color: textColor, margin: "0 0 10px", fontSize: 20 }}>{req.purpose}</h3>
                 <div style={{ fontSize: 13, color: mutedColor, marginBottom: 10 }}>By {req.ngoId?.name || "Verified NGO"}</div>
+                <div style={{ color: req.status === "approved" ? COLORS.mint : COLORS.amber, fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
+                  {req.status === "approved" ? "Approved" : "Awaiting admin approval"}
+                </div>
                 {req.documents && (
                   <div style={{ display: "flex", gap: 12, flexWrap: "nowrap", overflowX: "auto", marginBottom: 16, fontSize: 16, fontWeight: 600, paddingBottom: 4 }}>
                     {req.documents.needStatement && (
                       <a href="#" onClick={(e) => { e.preventDefault(); setViewDocUrl(req.documents.needStatement.startsWith('http') ? req.documents.needStatement : `http://${window.location.hostname}:5000/uploads/${req.documents.needStatement.split(/[\\/]/).pop()}`); }} style={{color: COLORS.amber, textDecoration: "none", background: isLight ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.2)", padding: "8px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap"}}>📄 Need Statement</a>
-                    )}
-                    {req.documents.registrationCertificate && (
-                      <a href="#" onClick={(e) => { e.preventDefault(); setViewDocUrl(req.documents.registrationCertificate.startsWith('http') ? req.documents.registrationCertificate : `http://${window.location.hostname}:5000/uploads/${req.documents.registrationCertificate.split(/[\\/]/).pop()}`); }} style={{color: COLORS.amber, textDecoration: "none", background: isLight ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.2)", padding: "8px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap"}}>📄 Registration</a>
                     )}
                     {req.documents.bankDetails && (
                       <a href="#" onClick={(e) => { e.preventDefault(); setViewDocUrl(req.documents.bankDetails.startsWith('http') ? req.documents.bankDetails : `http://${window.location.hostname}:5000/uploads/${req.documents.bankDetails.split(/[\\/]/).pop()}`); }} style={{color: COLORS.amber, textDecoration: "none", background: isLight ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.2)", padding: "8px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap"}}>📄 Bank Details</a>
@@ -1180,11 +1231,11 @@ function FundraisersPage({ fundRequests, reload, theme, user }) {
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <button 
-                  onClick={() => !goalReached && handleDonate(req)}
-                  disabled={goalReached}
-                  style={{ background: goalReached ? "rgba(148,163,184,0.35)" : COLORS.amber, color: goalReached ? "#64748b" : COLORS.forest, border: "none", padding: "14px 26px", borderRadius: 14, fontWeight: 700, cursor: goalReached ? "not-allowed" : "pointer", minWidth: 120 }}
+                  onClick={() => req.status === "approved" && !goalReached && handleDonate(req)}
+                  disabled={goalReached || req.status !== "approved"}
+                  style={{ background: goalReached || req.status !== "approved" ? "rgba(148,163,184,0.35)" : COLORS.amber, color: goalReached || req.status !== "approved" ? "#64748b" : COLORS.forest, border: "none", padding: "14px 26px", borderRadius: 14, fontWeight: 700, cursor: goalReached || req.status !== "approved" ? "not-allowed" : "pointer", minWidth: 120 }}
                 >
-                  {goalReached ? "Funded" : "Donate Now"}
+                  {goalReached ? "Funded" : req.status === "approved" ? "Donate Now" : "Pending Approval"}
                 </button>
               </div>
             </div>
@@ -1200,7 +1251,6 @@ function FundraisersPage({ fundRequests, reload, theme, user }) {
           reload();
           if (donationData && donationData._id) {
             setDonationId(donationData._id);
-            setPaymentStep(2);
           }
         }}
         onOnlinePay={handleOnlinePay}
@@ -1332,6 +1382,7 @@ export default function DonorDashboard({ theme }) {
   const navigate = useNavigate();
   const [active, setActive] = useState("donorHome");
   const [donations, setDonations] = useState([]);
+    const [moneyDonations, setMoneyDonations] = useState([]);
   const [stats, setStats] = useState({});
   const [ratingStats, setRatingStats] = useState(null);
   const [donorRequests, setDonorRequests] = useState([]);
@@ -1353,10 +1404,16 @@ export default function DonorDashboard({ theme }) {
       setStats(resStats.stats || {});
       const resDonations = await getMyDonations();
       setDonations(resDonations.data || []);
+      const resMoneyDonations = await getMyMoneyDonations().catch(() => ({ data: [] }));
+      setMoneyDonations(resMoneyDonations.data || []);
       const reqRes = await getRequests();
       setDonorRequests(reqRes.data || []);
       const fundReqRes = await getMoneyRequests().catch(() => ({ data: [] }));
-      setFundRequests(fundReqRes.data || []);
+      const activeFunds = (fundReqRes.data || []).filter(req => {
+        const remaining = Math.max(0, Number(req.amountNeeded) - Number(req.amountRaised));
+        return remaining > 0;
+      });
+      setFundRequests(activeFunds);
 
       // Load rating stats
       if (user?._id) {
@@ -1437,21 +1494,21 @@ export default function DonorDashboard({ theme }) {
     try {
       await updateRequest(requestId, { status });
       toast.success(`Request ${status} successfully!`);
-      loadData();
+      await loadData();
     } catch (err) {
       console.error(err);
-      toast.error("Failed to update request");
+      toast.error(err.response?.data?.message || err.message || "Failed to update request");
     }
   };
 
   const pages = {
     donorHome: <DonorHome setActive={setActive} user={user} stats={stats} recentDonations={donations} ratingStats={ratingStats} theme={theme} />,
     donate: <DonateForm setActive={setActive} reloadDonations={loadData} theme={theme} />,
-    myDonations: <MyDonations donations={donations} onDelete={handleDeleteDonation} theme={theme} />,
+    myDonations: <MyDonations donations={donations} moneyDonations={moneyDonations} onDelete={handleDeleteDonation} theme={theme} />,
     fundraisers: <FundraisersPage fundRequests={fundRequests} reload={loadData} theme={theme} user={user} />,
     impact: <ImpactPage stats={stats} theme={theme} />,
     requests: <RequestsPage requests={donorRequests} onRequestAction={handleRequestAction} theme={theme} user={user} />,
-    feedbacks: <FeedbacksPage theme={theme} refreshTrigger={refreshTrigger} />,
+    feedbacks: <FeedbacksPage theme={theme} refreshTrigger={refreshTrigger} activePage={active} />,
     notifications: <NotificationsPage notifications={notifications} setNotifications={setNotifications} theme={theme} />,
     profile: <ProfilePage user={user} setUser={setUser} theme={theme} />,
   };
@@ -1526,5 +1583,4 @@ export default function DonorDashboard({ theme }) {
     </DashboardLayout>
   );
 }
-
 

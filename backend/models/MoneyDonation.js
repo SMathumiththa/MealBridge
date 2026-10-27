@@ -46,6 +46,10 @@ const moneyDonationSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  receiptUrl: {
+    type: String,
+    default: ''
+  },
   confirmedAt: {
     type: Date
   },

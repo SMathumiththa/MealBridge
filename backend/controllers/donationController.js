@@ -4,6 +4,7 @@ const { isCloudinaryConfigured } = require('../config/cloudinary');
 const { sendFoodAlertEmail } = require('../services/emailService');
 const { generateTaxReceipt } = require('../services/pdfService');
 const { findBestMatches } = require('../services/smartMatchService');
+const { sendDonationAlertSms } = require('../services/smsService');
 
 // CREATE DONATION
 const createDonation = async (req, res) => {
@@ -63,6 +64,7 @@ const createDonation = async (req, res) => {
       expiryTime: new Date(expiryTime),
       image: imageUrl,
       isEmergency: emergencyFlag,
+      adminStatus: 'pending',
       statusHistory: [
         {
           status: 'pending',
@@ -85,22 +87,33 @@ const createDonation = async (req, res) => {
 
     const isUrgent = emergencyFlag || isLarge;
 
-    let targetNgos = ngos;
-    let notifMessage = "";
+    let targetNgoData = [];
     
     if (isUrgent) {
-      notifMessage = `🚨 URGENT: New food donation available in ${parsedLocation.address.split(',')[0]}: ${quantity} ${unit || 'kg'} of ${foodName}`;
+      // For urgent, just notify all NGOs
+      targetNgoData = ngos.map(ngo => ({ ngo, matchPercentage: 100 }));
     } else {
-      targetNgos = findBestMatches(parsedLocation, ngos, 5);
-      notifMessage = `✨ Smart Match: A donor nearby has ${quantity} ${unit || 'kg'} of ${foodName} available.`;
+      targetNgoData = findBestMatches(food, ngos, 5);
     }
     
-    const notifications = targetNgos.map(ngo => ({
-      recipientId: ngo._id,
-      message: notifMessage,
-      type: 'new_donation',
-      relatedId: food._id
-    }));
+    const notifications = targetNgoData.map(data => {
+      const { ngo, matchPercentage } = data;
+      let msg = "";
+      if (isUrgent) {
+        msg = `🚨 URGENT: New food donation available in ${parsedLocation.address.split(',')[0]}: ${quantity} ${unit || 'kg'} of ${foodName}`;
+      } else {
+        msg = `✨ AI Match (${matchPercentage}%): A donor nearby has ${quantity} ${unit || 'kg'} of ${foodName} available.`;
+      }
+
+      return {
+        recipientId: ngo._id,
+        message: msg,
+        type: 'new_donation',
+        relatedId: food._id
+      };
+    });
+
+    const targetNgos = targetNgoData.map(d => d.ngo);
 
     // If urgent, notify volunteers too
     if (isUrgent) {
@@ -141,6 +154,29 @@ const createDonation = async (req, res) => {
         }
       } catch (e) {
         console.error('Error sending large-donation emails:', e);
+      }
+
+      // Send SMS Alerts via Twilio / Mock Mode
+      try {
+        targetNgoData.forEach(data => {
+          const { ngo, matchPercentage } = data;
+          if (ngo.phone) {
+            const smsMsg = isUrgent 
+              ? `🚨 URGENT: New food donation available in ${parsedLocation.address.split(',')[0]}: ${quantity} ${unit || 'kg'} of ${foodName}`
+              : `✨ AI Match (${matchPercentage}%): A donor nearby has ${quantity} ${unit || 'kg'} of ${foodName} available.`;
+            sendDonationAlertSms(ngo.phone, `Hi ${ngo.name || 'NGO'}, ${smsMsg}`);
+          }
+        });
+        
+        if (isUrgent) {
+          volunteers.forEach(vol => {
+            if (vol.phone) {
+               sendDonationAlertSms(vol.phone, `🚨 URGENT Pickup Needed: ${quantity} ${unit || 'kg'} of ${foodName} available in ${parsedLocation.address?.split(',')[0] || 'your area'}.`);
+            }
+          });
+        }
+      } catch (smsError) {
+         console.error('Error sending SMS alerts:', smsError);
       }
     }
 
@@ -264,7 +300,12 @@ const getDonations = async (req, res) => {
   try {
     const { location, foodName, foodType, postedFrom, postedTo } = req.query;
 
-    const filter = { status: "pending" };
+    const filter = {
+      status: "pending",
+      adminStatus: "approved",
+      quantity: { $gt: 0 },
+      expiryTime: { $gt: new Date() },
+    };
 
     if (location) filter.location = location;
     if (foodName) filter.foodName = { $regex: foodName, $options: "i" };
@@ -278,9 +319,7 @@ const getDonations = async (req, res) => {
     if (req.user.role === "donor") {
       filter.donor = req.user._id;
     } else if (req.user.role === "ngo") {
-      filter.adminStatus = "approved";
-      filter.quantity = { $gt: 0 };
-      filter.expiryTime = { $gt: new Date() }; // Hide expired food from NGOs
+      // NGOs only see approved, available, and non-expired food.
     }
 
     const donations = await Food.find(filter).populate("donor", "name email phone organization role");

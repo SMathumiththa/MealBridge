@@ -6,32 +6,38 @@ import io from 'socket.io-client';
 
 // Removed require() calls for leaflet icons as they break in Vite
 
-const ngoIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/3204/3204121.png', // Car icon
-  iconSize: [40, 40],
-  iconAnchor: [20, 20]
+const markerIcon = (color) => L.divIcon({
+  className: '',
+  html: `<div style="width:18px;height:18px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.45)"></div>`,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12]
 });
 
-const donorIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/2776/2776067.png', // Home/Pin icon
-  iconSize: [40, 40],
-  iconAnchor: [20, 40]
-});
+const donorIcon = markerIcon('#e74c3c');
+const ngoIcon = markerIcon('#3498db');
+const volunteerIcon = markerIcon('#2ecc71');
+
+const validLocation = (location) => Boolean(
+  location && Number.isFinite(Number(location.lat)) && Number.isFinite(Number(location.lng))
+);
+
+const locationPoint = (location) => validLocation(location)
+  ? [Number(location.lat), Number(location.lng)]
+  : null;
 
 const MapUpdater = ({ center }) => {
   const map = useMap();
   useEffect(() => {
-    if (center) {
+    if (center && Array.isArray(center)) {
       map.setView(center, map.getZoom());
     }
   }, [center, map]);
   return null;
 };
 
-export default function LiveTracker({ roomId, currentUserRole, donorLocation }) {
-  // donorLocation expects { lat: Number, lng: Number }
-  
-  const [ngoLocation, setNgoLocation] = useState(null);
+export default function LiveTracker({ roomId, currentUserRole, donorLocation, ngoLocation: initialNgoLocation, volunteerLocation: initialVolunteerLocation }) {
+  const [ngoLocation, setNgoLocation] = useState(validLocation(initialNgoLocation) ? initialNgoLocation : null);
+  const [volunteerLocation, setVolunteerLocation] = useState(validLocation(initialVolunteerLocation) ? initialVolunteerLocation : null);
   const [routeCoords, setRouteCoords] = useState([]);
   const [socket, setSocket] = useState(null);
   const watchIdRef = useRef(null);
@@ -43,9 +49,10 @@ export default function LiveTracker({ roomId, currentUserRole, donorLocation }) 
     newSocket.emit("join_room", roomId);
 
     newSocket.on("receive_location", (data) => {
-      // If Donor or NGO is watching, update location based on who is travelling (NGO or Volunteer)
-      if ((currentUserRole === 'donor' || currentUserRole === 'ngo') && (data.role === 'ngo' || data.role === 'volunteer')) {
+      if (data.role === 'ngo') {
         setNgoLocation({ lat: data.lat, lng: data.lng });
+      } else if (data.role === 'volunteer') {
+        setVolunteerLocation({ lat: data.lat, lng: data.lng });
       }
     });
 
@@ -54,15 +61,15 @@ export default function LiveTracker({ roomId, currentUserRole, donorLocation }) 
     };
   }, [roomId, currentUserRole]);
 
-  // If currentUser is NGO or Volunteer, watch their location and emit
+  // Only the volunteer broadcasts live movement during an active delivery.
   useEffect(() => {
-    if ((currentUserRole === 'ngo' || currentUserRole === 'volunteer') && socket) {
+    if (currentUserRole === 'volunteer' && socket) {
       if (navigator.geolocation) {
         watchIdRef.current = navigator.geolocation.watchPosition(
           (position) => {
             const { latitude, longitude } = position.coords;
             const newLoc = { lat: latitude, lng: longitude };
-            setNgoLocation(newLoc);
+            setVolunteerLocation(newLoc);
             
             socket.emit("send_location", {
               roomId,
@@ -88,8 +95,9 @@ export default function LiveTracker({ roomId, currentUserRole, donorLocation }) 
 
   // Fetch Route from OSRM
   useEffect(() => {
-    if (ngoLocation && donorLocation) {
-      const url = `https://router.project-osrm.org/route/v1/driving/${ngoLocation.lng},${ngoLocation.lat};${donorLocation.lng},${donorLocation.lat}?overview=full&geometries=geojson`;
+    const movingLocation = volunteerLocation || ngoLocation;
+    if (validLocation(movingLocation) && validLocation(donorLocation)) {
+      const url = `https://router.project-osrm.org/route/v1/driving/${movingLocation.lng},${movingLocation.lat};${donorLocation.lng},${donorLocation.lat}?overview=full&geometries=geojson`;
       fetch(url)
         .then(res => res.json())
         .then(data => {
@@ -101,9 +109,10 @@ export default function LiveTracker({ roomId, currentUserRole, donorLocation }) 
         })
         .catch(err => console.error("Failed to fetch route:", err));
     }
-  }, [ngoLocation, donorLocation]);
+  }, [ngoLocation, volunteerLocation, donorLocation]);
 
-  const mapCenter = ngoLocation || donorLocation || { lat: 6.9271, lng: 79.8612 }; // Default Colombo
+  const movingLocation = volunteerLocation || ngoLocation;
+  const mapCenter = locationPoint(movingLocation) || locationPoint(donorLocation) || [6.9271, 79.8612];
 
   return (
     <div style={{ height: "400px", width: "100%", borderRadius: "12px", overflow: "hidden", border: "2px solid rgba(255,255,255,0.1)", background: "#111" }}>
@@ -119,22 +128,31 @@ export default function LiveTracker({ roomId, currentUserRole, donorLocation }) 
         )}
 
         {/* Donor Pin (Static) */}
-        {donorLocation && (
-          <Marker position={[donorLocation.lat, donorLocation.lng]} icon={donorIcon}>
+        {validLocation(donorLocation) && (
+          <Marker position={locationPoint(donorLocation)} icon={donorIcon}>
             <Popup>Donor Location (Food is here)</Popup>
           </Marker>
         )}
 
-        {/* NGO Pin (Moving) */}
-        {ngoLocation && (
-          <Marker position={[ngoLocation.lat, ngoLocation.lng]} icon={ngoIcon}>
-            <Popup>NGO / Volunteer (Moving)</Popup>
+        {validLocation(initialNgoLocation) && (
+          <Marker position={locationPoint(ngoLocation)} icon={ngoIcon}>
+            <Popup>NGO Location</Popup>
           </Marker>
         )}
 
-        {/* Auto-center map to moving NGO location or Donor Location */}
-        <MapUpdater center={ngoLocation || donorLocation} />
+        {validLocation(volunteerLocation) && (
+          <Marker position={locationPoint(volunteerLocation)} icon={volunteerIcon}>
+            <Popup>Volunteer Live Location</Popup>
+          </Marker>
+        )}
+
+        <MapUpdater center={locationPoint(movingLocation) || locationPoint(donorLocation)} />
       </MapContainer>
+      <div style={{ display: 'flex', gap: 12, padding: '8px 10px', background: 'rgba(0,0,0,.72)', color: 'white', fontSize: 12 }}>
+        <span><b style={{ color: '#e74c3c' }}>●</b> Donor</span>
+        <span><b style={{ color: '#3498db' }}>●</b> NGO</span>
+        <span><b style={{ color: '#2ecc71' }}>●</b> Volunteer</span>
+      </div>
     </div>
   );
 }

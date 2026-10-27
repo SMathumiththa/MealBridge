@@ -25,8 +25,8 @@ export const updateProfile = async (data) => {
   return response.data;
 };
 
-export const getLeaderboard = async () => {
-  const response = await API.get('/auth/leaderboard');
+export const getLeaderboard = async (role = 'donor') => {
+  const response = await API.get(`/auth/leaderboard?role=${role}`);
   return response.data;
 };
 

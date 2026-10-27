@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { loginUser } from "../api/auth";
 import FloatingFood from "../components/FloatingFood";
 
 export default function Login({ theme = "dark", isAdminPortal = false }) {
   const isLight = theme === "light";
+  const { t } = useTranslation();
   const isAdminMode = isAdminPortal || import.meta.env.MODE === "admin";
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -16,8 +18,8 @@ export default function Login({ theme = "dark", isAdminPortal = false }) {
   const [requires2FA, setRequires2FA] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const pageBg = isLight
-    ? "radial-gradient(ellipse at 20% 20%, #ffffff 0%, #f8fafc 40%, #e2e8f0 70%, #d6d8de 100%)"
-    : "radial-gradient(ellipse at 20% 20%, #2d5a3d 0%, #1a3a2a 40%, #0f2219 70%, #08150e 100%)";
+    ? "linear-gradient(135deg, #f4f8f7, #dcefeb, #79cf8a)"
+    : "linear-gradient(135deg, #073b65, #124b55, #167d78)";
   const cardBg = isLight ? "rgba(255,255,255,0.95)" : "rgba(35, 53, 41, 0.4)";
   const textColor = isLight ? "#0f172a" : "white";
   const titleColor = isLight ? "#0f172a" : "white";
@@ -140,16 +142,11 @@ export default function Login({ theme = "dark", isAdminPortal = false }) {
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: "32px" }}>
             <p style={{ color: "#d68840", fontSize: "12px", fontWeight: "700", letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: "8px" }}>
-              {isAdminMode ? "ADMIN ACCESS" : "WELCOME BACK"}
+              {isAdminMode ? t('auth.adminAccess') : t('auth.welcomeBack')}
             </p>
             <h2 style={{ color: titleColor, fontSize: "36px", fontWeight: "700", margin: 0 }}>
-              {isAdminMode ? "Sign in to the admin panel" : "Sign in to continue"}
+              {isAdminMode ? t('auth.adminSignIn') : t('auth.signInTitle')}
             </h2>
-            {isAdminMode && (
-              <p style={{ color: isLight ? "rgba(15,23,42,0.65)" : "rgba(255,255,255,0.72)", fontSize: 13, marginTop: 10, marginBottom: 0, lineHeight: 1.5 }}>
-                Use the canonical admin account for this local admin portal.
-              </p>
-            )}
           </div>
 
           {error && <p style={{ color: "#ffb3b3", fontSize: "14px", marginBottom: "20px", background: "rgba(255,0,0,0.1)", padding: "10px", borderRadius: "8px", border: "1px solid rgba(255,0,0,0.2)" }}>{error}</p>}
@@ -158,17 +155,12 @@ export default function Login({ theme = "dark", isAdminPortal = false }) {
             <>
               <div style={{ marginBottom: "24px" }}>
             <label style={{ color: "#95a89b", fontSize: "11px", fontWeight: "600", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>
-              I WANT TO JOIN AS
+              {t('auth.joinAs')}
             </label>
-            {isAdminMode && (
-              <div style={{ marginBottom: 10, color: isLight ? "rgba(15,23,42,0.65)" : "rgba(255,255,255,0.72)", fontSize: 12 }}>
-                Admin role is locked in this portal.
-              </div>
-            )}
               <div style={{ display: "flex", gap: "12px" }}>
               {(isAdminMode
-                ? [{id: "admin", label: "⚙️ Admin"}]
-                : [{id: "donor", label: "🤝 Donor"}, {id: "ngo", label: "🏢 NGO"}, {id: "volunteer", label: "🚚 Volunteer"}, {id: "admin", label: "⚙️ Admin"}]
+                ? [{id: "admin", label: t('auth.admin')}]
+                : [{id: "donor", label: t('auth.donor')}, {id: "ngo", label: t('auth.ngo')}, {id: "volunteer", label: t('auth.volunteer')}]
               ).map(r => (
                 <div key={r.id} onClick={() => setRole(r.id)} style={{
                   flex: 1, padding: "12px 8px", textAlign: "center", borderRadius: "12px", cursor: "pointer",
@@ -187,13 +179,13 @@ export default function Login({ theme = "dark", isAdminPortal = false }) {
 
           <div style={{ marginBottom: "24px" }}>
             <label style={{ color: "#95a89b", fontSize: "11px", fontWeight: "600", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>
-              EMAIL ADDRESS
+              {t('auth.email')}
             </label>
             <div style={{ position: "relative" }}>
               <svg style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", color: "#7a8c80" }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
               <input 
                 type="email" 
-                placeholder="you@example.com"
+                placeholder={t('auth.emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="off"
@@ -206,13 +198,13 @@ export default function Login({ theme = "dark", isAdminPortal = false }) {
 
           <div style={{ marginBottom: "16px" }}>
             <label style={{ color: "#95a89b", fontSize: "11px", fontWeight: "600", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>
-              PASSWORD
+              {t('auth.password')}
             </label>
             <div style={{ position: "relative" }}>
               <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "14px", filter: "opacity(0.8)" }}>🔒</span>
               <input 
                 type={showPassword ? "text" : "password"}
-                placeholder={isAdminMode ? "Admin password" : "Enter your password"}
+                placeholder={isAdminMode ? t('auth.adminPasswordPlaceholder') : t('auth.passwordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
@@ -247,7 +239,7 @@ export default function Login({ theme = "dark", isAdminPortal = false }) {
           {!isAdminMode && (
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "32px" }}>
               <Link to="/forgot-password" style={{ color: "#d68840", fontSize: "13px", textDecoration: "none", fontWeight: "500", transition: "color 0.2s", position: "relative", zIndex: 10 }} onMouseOver={(e)=>e.target.style.color="#f2b479"} onMouseOut={(e)=>e.target.style.color="#d68840"}>
-                Forgot password?
+                {t('auth.forgotPassword')}
               </Link>
             </div>
           )}
@@ -320,11 +312,11 @@ export default function Login({ theme = "dark", isAdminPortal = false }) {
             onMouseUp={(e) => !loading && (e.currentTarget.style.transform = "scale(1)")}
             onMouseLeave={(e) => !loading && (e.currentTarget.style.transform = "scale(1)")}
           >
-            {loading ? "Signing in..." : requires2FA ? "Verify & Login →" : "Login →"}
+            {loading ? t('auth.signingIn') : requires2FA ? "Verify & Login →" : t('auth.signInBtn')}
           </button>
 
           <p style={{ textAlign: "center", marginTop: "32px", fontSize: "14px", color: "#8b9c91" }}>
-            New to Meal Bridge? <Link to="/register" style={{ color: "#d68840", textDecoration: "none", fontWeight: "600", position: "relative", zIndex: 10 }}>Create an account</Link>
+            {t('auth.noAccount')} <Link to="/register" style={{ color: "#d68840", textDecoration: "none", fontWeight: "600", position: "relative", zIndex: 10 }}>{t('auth.signUp')}</Link>
           </p>
         </form>
       </div>

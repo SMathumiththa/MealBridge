@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout";
 import StatCard from "../components/StatCard";
@@ -168,7 +169,7 @@ function DonationCard({ donation, onRequest, onViewDetails, requested }) {
           {requested ? (
             <Btn variant="secondary" disabled style={{ flex: 1, background: "rgba(46,155,78,0.1)", color: COLORS.mint, borderColor: "rgba(46,155,78,0.2)" }}>✅ Requested</Btn>
           ) : (
-            <Btn style={{ flex: 1, background: "linear-gradient(135deg, #2e9b4e 0%, #1c6d35 100%)", color: "white", border: "none", boxShadow: "0 4px 12px rgba(46,155,78,0.3)" }} onClick={() => onRequest(donation)}>Request Food</Btn>
+            <Btn style={{ flex: 1, background: "linear-gradient(135deg, #2e9b4e 0%, #1c6d35 100%)", color: "white", border: "none", boxShadow: "0 4px 12px rgba(46,155,78,0.3)" }} onClick={() => onRequest(donation)}>{t("ngo.requestFood", { defaultValue: "Request Food" })}</Btn>
           )}
         </div>
       </div>
@@ -176,26 +177,27 @@ function DonationCard({ donation, onRequest, onViewDetails, requested }) {
   );
 }
 
-function getTimeGreeting() {
+function getTimeGreeting(t) {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return t("common.morning");
+  if (hour < 17) return t("common.afternoon");
+  return t("common.evening");
 }
 
 const getMethodLabel = (don) => METHOD_LABELS[don.donationMethod] || don.donationMethod;
 
 // ─── PAGE: DASHBOARD ──────────────────────────────────────────────────────────
 function DashboardPage({ availableDonations, requests, onNav, user, fundDonations, feedbacks }) {
+  const { t } = useTranslation();
   const accepted = requests.filter(r => r.status === "accepted").length;
   const completed = requests.filter(r => r.status === "completed").length;
-  const greeting = getTimeGreeting();
+  const greeting = getTimeGreeting(t);
 
   return (
     <div>
       <div style={{ marginBottom: 28 }}>
         <h2 style={{ color: "white", fontSize: 28, margin: "0 0 5px" }}>{greeting}, {user?.name || "NGO"}! 🌿</h2>
-        <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 15, margin: 0 }}>Here's what's available near you today</p>
+        <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 15, margin: 0 }}>{t("common.ngoWelcome")}</p>
       </div>
       <div style={{ display: "flex", gap: 14, marginBottom: 28, flexWrap: "wrap" }}>
         <StatCard icon="🍱" label="Available Now" value={availableDonations.length} color={COLORS.mint} sub="Near you" onClick={() => onNav("browse")} />
@@ -307,7 +309,8 @@ function DashboardPage({ availableDonations, requests, onNav, user, fundDonation
 }
 
 // ─── PAGE: BROWSE ─────────────────────────────────────────────────────────────
-function BrowsePage({ donations, requests, onRequest, user }) {
+function BrowsePage({ donations, requests, onRequest, user, theme }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [district, setDistrict] = useState("");
   const [place, setPlace] = useState("");
@@ -347,22 +350,23 @@ function BrowsePage({ donations, requests, onRequest, user }) {
 
   return (
     <div>
-      <h2 style={{ color: "white", fontSize: 26, margin: "0 0 22px" }}>🔍 Browse Available Food</h2>
+      <h2 style={{ color: "white", fontSize: 26, margin: "0 0 22px" }}>🔍 {t("ngo.browseFood", { defaultValue: "Browse Available Food" })}</h2>
 
       {/* Search & Filters */}
       <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 16, padding: "20px", marginBottom: 22 }}>
-        <Input placeholder="Search by food name or donor..." value={search} onChange={e => setSearch(e.target.value)} icon="🔍" />
+        <Input placeholder={t("ngo.searchPlaceholder", { defaultValue: "Search by food name or donor..." })} value={search} onChange={e => setSearch(e.target.value)} icon="🔍" />
         <LocationSelector 
           district={district} 
           setDistrict={(val) => { setDistrict(val); setPlace(""); }} 
           place={place} 
           setPlace={setPlace}
-          label="Filter by Location"
+          label={t("ngo.filterByLocation", { defaultValue: "Filter by Location" })}
+          theme={theme}
         />
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: "16px" }}>
           {["all", "veg", "non-veg"].map(f => (
             <button key={f} onClick={() => setTypeFilter(f)} style={{ padding: "8px 18px", borderRadius: 20, border: `1px solid ${typeFilter === f ? "rgba(126, 200, 160, 0.5)" : "rgba(255,255,255,0.15)"}`, background: typeFilter === f ? "rgba(126, 200, 160, 0.2)" : "rgba(255,255,255,0.05)", color: typeFilter === f ? COLORS.mint : "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer", fontWeight: typeFilter === f ? 600 : 400, textTransform: "capitalize", transition: "all 0.15s" }}>
-              {f === "all" ? "🍽️ All" : f === "veg" ? "🥦 Veg" : "🍗 Non-Veg"}
+              {f === "all" ? `🍽️ ${t("common.all", { defaultValue: "All" })}` : f === "veg" ? `🥦 ${t("common.veg", { defaultValue: "Veg" })}` : `🍗 ${t("common.nonVeg", { defaultValue: "Non-Veg" })}`}
             </button>
           ))}
         </div>
@@ -489,7 +493,7 @@ function MyRequestsPage({ requests, onPickup, user }) {
   const [filter, setFilter] = useState("all");
   const [confirmPickup, setConfirmPickup] = useState(null);
   const [activeChat, setActiveChat] = useState(null);
-  const statusMap = { pending: "amber", accepted: "green", rejected: "red", completed: "blue" };
+  const statusMap = { pending: "amber", accepted: "green", picked_up: "blue", rejected: "red", completed: "blue" };
 
   const filtered = filter === "all" ? requests : requests.filter(r => r.status === filter);
 
@@ -522,6 +526,12 @@ function MyRequestsPage({ requests, onPickup, user }) {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "white", marginBottom: 4 }}>{r.foodId?.foodName}</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{r.foodId?.donor?.name} · {r.qty} {r.foodId?.unit} · Requested {new Date(r.createdAt).toLocaleDateString()}</div>
+              {r.volunteerId && (
+                <div style={{ fontSize: 12, color: COLORS.mint, marginTop: 6, fontWeight: 600 }}>
+                  Volunteer: {r.volunteerId.name || "Assigned"}
+                  {r.volunteerId.phone && <> · <a href={`tel:${r.volunteerId.phone}`} style={{ color: COLORS.mint }}>{r.volunteerId.phone}</a></>}
+                </div>
+              )}
               {r.message && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontStyle: "italic" }}>"{r.message}"</div>}
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
@@ -531,38 +541,52 @@ function MyRequestsPage({ requests, onPickup, user }) {
                     onClick={() => setActiveChat({ requestId: r._id, otherUserId: r.foodId?.donor?._id })}
                     style={{ background: "rgba(255,255,255,0.1)", color: "white", border: "none", padding: "6px 12px", borderRadius: 16, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
                   >
-                    💬 Chat
+                    💬 {r.volunteerId ? "Contact Volunteer" : "Chat Donor"}
                   </button>
+                )}
+                {r.volunteerId?.phone && (
+                  <a href={`tel:${r.volunteerId.phone}`} style={{ background: "rgba(46,155,78,0.2)", color: COLORS.mint, padding: "6px 12px", borderRadius: 16, textDecoration: "none", fontSize: 12, fontWeight: 700 }}>
+                    Call Volunteer
+                  </a>
                 )}
                 <Badge color={statusMap[r.status]}>{r.status.charAt(0).toUpperCase() + r.status.slice(1)}</Badge>
               </div>
               {r.status === "accepted" && (
-                <Btn style={{background: COLORS.mint, color: COLORS.forest}} size="sm" onClick={() => setConfirmPickup(r)}>Mark Picked Up</Btn>
+                <Btn style={{background: COLORS.mint, color: COLORS.forest}} size="sm" onClick={() => setConfirmPickup(r)}>Mark Pickup Complete</Btn>
+              )}
+              {r.status === "picked_up" && (
+                <Btn style={{background: COLORS.mint, color: COLORS.forest}} size="sm" onClick={() => setConfirmPickup(r)}>Mark Delivery Complete</Btn>
               )}
             </div>
           </div>
           {activeChat?.requestId === r._id && (
             <div style={{ marginTop: -4, marginBottom: 16, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
               <button onClick={() => setActiveChat(null)} style={{ background: "transparent", color: "#e74c3c", border: "none", cursor: "pointer", fontSize: 12, marginBottom: 8, fontWeight: 600 }}>✖ Close Chat</button>
-              <ChatWidget requestId={r._id} currentUserId={user?._id} currentUserRole="ngo" />
+              <ChatWidget
+                requestId={r._id}
+                currentUserId={user?._id}
+                currentUserRole="ngo"
+                donorLocation={r.foodId?.location}
+                ngoLocation={user?.officeLocation}
+              />
             </div>
           )}
           </React.Fragment>
         ))
       )}
 
-      <Modal open={!!confirmPickup} onClose={() => setConfirmPickup(null)} title="Confirm Pickup">
+      <Modal open={!!confirmPickup} onClose={() => setConfirmPickup(null)} title={confirmPickup?.status === "picked_up" ? "Confirm Delivery" : "Confirm Pickup"}>
         {confirmPickup && (
           <div>
             <p style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>
               Are you confirming pickup of <strong style={{ color: "white" }}>{confirmPickup.qty} {confirmPickup.foodId?.unit}</strong> of <strong style={{ color: "white" }}>{confirmPickup.foodId?.foodName}</strong> from {confirmPickup.foodId?.donor?.name}?
             </p>
             <div style={{ background: "rgba(46,155,78,0.1)", border: "1px solid rgba(46,155,78,0.25)", borderRadius: 12, padding: "14px 16px", marginBottom: 22, fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
-              ✅ This will mark the donation request as completed. Please make sure you have received the food.
+              ✅ {confirmPickup.status === "picked_up" ? "This will complete the delivery for the donor." : "This will mark the pickup stage complete."}
             </div>
             <div style={{ display: "flex", gap: 12 }}>
               <Btn variant="secondary" onClick={() => setConfirmPickup(null)} style={{ flex: 1 }}>Cancel</Btn>
-              <Btn style={{background: COLORS.mint, color: COLORS.forest, flex: 1}} onClick={() => { onPickup(confirmPickup); setConfirmPickup(null); }}>✅ Confirm Pickup</Btn>
+              <Btn style={{background: COLORS.mint, color: COLORS.forest, flex: 1}} onClick={() => { onPickup(confirmPickup); setConfirmPickup(null); }}>✅ {confirmPickup.status === "picked_up" ? "Confirm Delivery" : "Confirm Pickup"}</Btn>
             </div>
           </div>
         )}
@@ -572,7 +596,7 @@ function MyRequestsPage({ requests, onPickup, user }) {
 }
 
 // ─── PAGE: PICKUPS ────────────────────────────────────────────────────────────
-function PickupsPage({ requests }) {
+function PickupsPage({ requests, feedbacks, onRateDonor }) {
   const completed = requests.filter(r => r.status === "completed");
   return (
     <div>
@@ -586,18 +610,26 @@ function PickupsPage({ requests }) {
           <div style={{ fontSize: 52, marginBottom: 14 }}>🫙</div>
           <div>No completed pickups yet. Accept requests and mark them as picked up!</div>
         </div>
-      ) : completed.map((r) => (
-        <div key={r._id} style={{ background: "rgba(46,155,78,0.07)", border: "1px solid rgba(46,155,78,0.2)", borderRadius: 16, padding: "18px 22px", marginBottom: 12, display: "flex", alignItems: "center", gap: 16 }}>
-          {r.foodId?.image ? (
-               <img src={r.foodId.image} alt="food" style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover" }} />
-            ) : <span style={{ fontSize: 34, width: 44, textAlign: "center" }}>🍱</span>}
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "white" }}>{r.foodId?.foodName}</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)" }}>From {r.foodId?.donor?.name} · {r.qty} {r.foodId?.unit}</div>
+      ) : completed.map((r) => {
+        const hasRated = feedbacks.some(f => f.requestId === r._id);
+        return (
+          <div key={r._id} style={{ background: "rgba(46,155,78,0.07)", border: "1px solid rgba(46,155,78,0.2)", borderRadius: 16, padding: "18px 22px", marginBottom: 12, display: "flex", alignItems: "center", gap: 16 }}>
+            {r.foodId?.image ? (
+                 <img src={r.foodId.image} alt="food" style={{ width: 44, height: 44, borderRadius: 10, objectFit: "cover" }} />
+              ) : <span style={{ fontSize: 34, width: 44, textAlign: "center" }}>🍱</span>}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "white" }}>{r.foodId?.foodName}</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)" }}>From {r.foodId?.donor?.name} · {r.qty} {r.foodId?.unit}</div>
+            </div>
+            <Badge color="green">✅ Completed</Badge>
+            {!hasRated && (
+              <Btn size="sm" onClick={() => onRateDonor(r)} style={{ background: COLORS.amber, color: COLORS.forest }}>
+                ⭐ Rate
+              </Btn>
+            )}
           </div>
-          <Badge color="green">✅ Completed</Badge>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -796,7 +828,7 @@ function NotificationsPage({ notifications, setNotifications }) {
 }
 
 // ─── PAGE: FEEDBACKS ──────────────────────────────────────────────────────────
-function FeedbacksPage({ completedRequests, onLoadFeedbacks, refreshTrigger }) {
+function FeedbacksPage({ completedRequests, onLoadFeedbacks, refreshTrigger, activePage }) {
   const [activeTab, setActiveTab] = useState("pending"); // pending or submitted
   const [feedbacks, setFeedbacks] = useState([]);
   const [receivedFeedbacks, setReceivedFeedbacks] = useState([]);
@@ -821,8 +853,10 @@ function FeedbacksPage({ completedRequests, onLoadFeedbacks, refreshTrigger }) {
   };
 
   useEffect(() => {
-    loadFeedbacks();
-  }, [refreshTrigger]);
+    if (activePage === "feedbacks") {
+      loadFeedbacks();
+    }
+  }, [refreshTrigger, activePage]);
 
   const handleFeedbackSubmit = () => {
     loadFeedbacks();
@@ -830,7 +864,7 @@ function FeedbacksPage({ completedRequests, onLoadFeedbacks, refreshTrigger }) {
   };
 
   // Get requests that are completed and don't have feedback yet
-  const pendingFeedback = completedRequests.filter(r => !r.feedbackSubmitted);
+  const pendingFeedback = completedRequests.filter(r => !r.feedbackSubmitted || (r.volunteerId && !r.volunteerFeedbackSubmitted));
 
   return (
     <div>
@@ -925,13 +959,27 @@ function FeedbacksPage({ completedRequests, onLoadFeedbacks, refreshTrigger }) {
                   </div>
 
                   {/* Feedback Form */}
-                  <FeedbackForm
-                    donorId={request.foodId?.donor?._id}
-                    requestId={request._id}
-                    donationId={request.foodId?._id}
-                    donorName={request.foodId?.donor?.name}
-                    onSubmitSuccess={handleFeedbackSubmit}
-                  />
+                  {!request.feedbackSubmitted && (
+                    <FeedbackForm
+                      donorId={request.foodId?.donor?._id}
+                      requestId={request._id}
+                      donationId={request.foodId?._id}
+                      donorName={request.foodId?.donor?.name}
+                      onSubmitSuccess={handleFeedbackSubmit}
+                    />
+                  )}
+                  {request.volunteerId && !request.volunteerFeedbackSubmitted && (
+                    <div style={{ marginTop: 28, paddingTop: 24, borderTop: "1px solid rgba(255,255,255,0.12)" }}>
+                      <FeedbackForm
+                        volunteerId={request.volunteerId?._id || request.volunteerId}
+                        requestId={request._id}
+                        donationId={request.foodId?._id}
+                        targetName={request.volunteerId?.name || "your volunteer"}
+                        targetLabel="volunteer"
+                        onSubmitSuccess={handleFeedbackSubmit}
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1061,8 +1109,8 @@ function FundRequestsPage({ fundRequests, fundDonations, reload, user }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!files.needStatement || !files.registrationCertificate || !files.bankDetails) {
-      return toast.error("Please upload all required documents");
+    if (!files.needStatement || !files.bankDetails) {
+      return toast.error("Please upload the need statement and bank details");
     }
     setLoading(true);
     const fd = new FormData();
@@ -1122,14 +1170,6 @@ function FundRequestsPage({ fundRequests, fundDonations, reload, user }) {
                 <div style={{ background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.18)", borderRadius: 16, padding: "16px 14px" }}>
                   <input type="file" accept=".pdf,image/*" onChange={e => handleFile(e, "needStatement")} required style={{ width: "100%", color: "white", background: "transparent", border: "none", outline: "none" }} />
                   {files.needStatement && <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 8 }}>{files.needStatement.name}</div>}
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gap: 8 }}>
-                <label style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: 600 }}>Registration Certificate *</label>
-                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.18)", borderRadius: 16, padding: "16px 14px" }}>
-                  <input type="file" accept=".pdf,image/*" onChange={e => handleFile(e, "registrationCertificate")} required style={{ width: "100%", color: "white", background: "transparent", border: "none", outline: "none" }} />
-                  {files.registrationCertificate && <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 8 }}>{files.registrationCertificate.name}</div>}
                 </div>
               </div>
 
@@ -1380,7 +1420,7 @@ export default function NGODashboard({ theme = "dark" }) {
       } else {
         toast(notif.message, { icon: "🔔" });
       }
-      if (notif.type === "general" || notif.type === "new_donation" || notif.type === "status_change") {
+      if (notif.type === "general" || notif.type === "new_donation" || notif.type === "status_change" || notif.type === "money_donation_received" || notif.type === "donation_pending" || notif.type === "donation_cancelled") {
         loadData();
       }
     });
@@ -1412,10 +1452,11 @@ export default function NGODashboard({ theme = "dark" }) {
 
   const handlePickup = async (request) => {
     try {
-      await updateRequest(request._id, { status: "completed" });
-      toast.success("Pickup confirmed! Thank you 🙏");
+      const nextStatus = request.status === "picked_up" ? "completed" : "picked_up";
+      await updateRequest(request._id, { status: nextStatus });
+      toast.success(nextStatus === "completed" ? "Delivery confirmed! Thank you 🙏" : "Pickup confirmed! Thank you 🙏");
       loadData();
-      setFeedbackPromptRequest(request); // Prompt for feedback immediately
+      if (nextStatus === "completed") setFeedbackPromptRequest(request);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to confirm pickup");
     }
@@ -1428,11 +1469,11 @@ export default function NGODashboard({ theme = "dark" }) {
 
   const pages = {
     dashboard: <DashboardPage availableDonations={availableDonations} requests={requests} onNav={setPage} user={user} fundDonations={fundDonations} feedbacks={feedbacks} />,
-    browse: <BrowsePage donations={availableDonations} requests={requests} onRequest={handleRequest} user={user} />,
+    browse: <BrowsePage donations={availableDonations} requests={requests} onRequest={handleRequest} user={user} theme={theme} />,
     myRequests: <MyRequestsPage requests={requests} onPickup={handlePickup} user={user} />,
-    pickups: <PickupsPage requests={requests} />,
+    pickups: <PickupsPage requests={requests} feedbacks={feedbacks} onRateDonor={setFeedbackPromptRequest} />,
     fundRequests: <FundRequestsPage fundRequests={fundRequests} fundDonations={fundDonations} reload={loadData} user={user} />,
-    feedbacks: <FeedbacksPage completedRequests={completedRequests} onLoadFeedbacks={loadData} refreshTrigger={refreshTrigger} />,
+    feedbacks: <FeedbacksPage completedRequests={completedRequests} onLoadFeedbacks={loadData} refreshTrigger={refreshTrigger} activePage={page} />,
     notifications: <NotificationsPage notifications={notifications} setNotifications={setNotifications} />,
     profile: <ProfilePage user={user} setUser={setUser} />,
   };
@@ -1535,4 +1576,3 @@ export default function NGODashboard({ theme = "dark" }) {
     </DashboardLayout>
   );
 }
-

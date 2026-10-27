@@ -1,6 +1,6 @@
 import { COLORS } from "../theme";
 
-export default function StatCard({ icon, label, value, color = COLORS.amber, sub }) {
+export default function StatCard({ icon, label, value, color = COLORS.amber, sub, align = "left" }) {
   return (
     <div
       style={{
@@ -9,6 +9,7 @@ export default function StatCard({ icon, label, value, color = COLORS.amber, sub
         borderRadius: 18,
         padding: "20px 22px",
         flex: 1,
+        textAlign: align,
       }}
     >
       <div style={{ fontSize: 28, marginBottom: 10 }}>{icon}</div>

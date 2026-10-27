@@ -42,6 +42,11 @@ export const getNgoMoneyDonations = async () => {
   return response.data;
 };
 
+export const getMyMoneyDonations = async () => {
+  const response = await API.get(`/money-donations/mine`);
+  return response.data;
+};
+
 export const getAllMoneyDonations = async () => {
   const response = await API.get("/money-donations");
   return response.data;

@@ -1,9 +1,14 @@
+import { useEffect } from "react";
 import Sidebar from "./Sidebar";
 
 export default function DashboardLayout({ role, activePage, onNav, onLogout, user, notifCount = 0, requestCount = 0, theme = "dark", children }) {
-  const isLight = theme === "light";
+  useEffect(() => {
+    document.body.classList.add("dashboard-route");
+    return () => document.body.classList.remove("dashboard-route");
+  }, []);
+
   return (
-    <div style={{ display: "flex", minHeight: "100vh", position: "relative", background: isLight ? "#f4f7fb" : "transparent" }}>
+    <div style={{ display: "flex", minHeight: "100vh", position: "relative", background: "transparent" }}>
       {/* Sidebar is fixed on the left */}
       <Sidebar 
         role={role} 
@@ -22,7 +27,7 @@ export default function DashboardLayout({ role, activePage, onNav, onLogout, use
         display: "flex", 
         justifyContent: "center", // This centers the inner content horizontally!
         padding: "36px 40px",
-        background: isLight ? "rgba(255,255,255,0.87)" : "transparent",
+        background: "transparent",
       }}>
         {/* Inner container constraints the width */}
         <div style={{ width: "100%", maxWidth: 900 }}>
@@ -32,4 +37,3 @@ export default function DashboardLayout({ role, activePage, onNav, onLogout, use
     </div>
   );
 }
-

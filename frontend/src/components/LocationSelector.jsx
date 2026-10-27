@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 const SRI_LANKA_LOCATIONS = {
   "COLOMBO": [
@@ -47,7 +48,17 @@ const DISTRICT_ALIASES = {
   "kga": "KEGALLE"
 };
 
-export default function LocationSelector({ district, setDistrict, place, setPlace, districtError, placeError, label = "Pickup Location" }) {
+export default function LocationSelector({ 
+  district, 
+  setDistrict, 
+  place, 
+  setPlace, 
+  districtError, 
+  placeError, 
+  label = "Pickup Location",
+  theme
+}) {
+  const { t } = useTranslation();
   const [districtSearch, setDistrictSearch] = useState("");
   const [showDistricts, setShowDistricts] = useState(false);
   
@@ -55,6 +66,9 @@ export default function LocationSelector({ district, setDistrict, place, setPlac
   const [showPlaces, setShowPlaces] = useState(false);
 
   const [detecting, setDetecting] = useState(false);
+
+  // Auto-detect theme from prop or document body
+  const isLight = theme === "light" || (typeof document !== "undefined" && document.body.classList.contains("light-theme"));
 
   const districts = Object.keys(SRI_LANKA_LOCATIONS).sort((a, b) => a.localeCompare(b));
   const filteredDistricts = districts.filter(d => {
@@ -66,7 +80,6 @@ export default function LocationSelector({ district, setDistrict, place, setPlac
     return false;
   });
 
-  // Dynamically deduplicate and sort places alphabetically for better UX
   const places = useMemo(() => {
     if (!district) return [];
     const rawPlaces = SRI_LANKA_LOCATIONS[district] || [];
@@ -116,7 +129,7 @@ export default function LocationSelector({ district, setDistrict, place, setPlac
           const match = Object.keys(SRI_LANKA_LOCATIONS).find(d => detectedString.includes(d));
           if (match) {
             setDistrict(match);
-            setPlace(""); // Reset place as it's harder to match exact village names
+            setPlace("");
           } else {
             alert("Could not map your location to a Sri Lankan district.");
           }
@@ -132,20 +145,38 @@ export default function LocationSelector({ district, setDistrict, place, setPlac
     });
   };
 
+  // Color variables for theme-aware rendering
+  const labelColor = isLight ? "rgba(15,23,42,0.68)" : "rgba(255,255,255,0.6)";
+  const triggerBg = isLight ? "#ffffff" : "rgba(255,255,255,0.06)";
+  const triggerBorder = isLight ? "1px solid rgba(15,23,42,0.16)" : "1px solid rgba(255,255,255,0.15)";
+  const triggerBorderActive = isLight ? "1px solid #19a85a" : "1px solid rgba(25,168,90,0.7)";
+  const textColor = isLight ? "#0f172a" : "#ffffff";
+  const placeholderColor = isLight ? "rgba(15,23,42,0.45)" : "rgba(255,255,255,0.45)";
+  
+  const menuBg = isLight ? "#ffffff" : "#0f2231";
+  const menuBorder = isLight ? "1px solid rgba(15,23,42,0.12)" : "1px solid rgba(255,255,255,0.15)";
+  const menuShadow = isLight ? "0 14px 40px rgba(15,23,42,0.14)" : "0 18px 48px rgba(0,0,0,0.65)";
+  
+  const searchInputBg = isLight ? "#f8fafc" : "rgba(255,255,255,0.06)";
+  const searchInputBorder = isLight ? "1px solid rgba(15,23,42,0.14)" : "1px solid rgba(255,255,255,0.15)";
+  const searchBorderBottom = isLight ? "1px solid rgba(15,23,42,0.08)" : "1px solid rgba(255,255,255,0.1)";
+
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.55)", letterSpacing: "1.2px", textTransform: "uppercase" }}>{label}</label>
+        <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: labelColor, letterSpacing: "1.2px", textTransform: "uppercase" }}>
+          {label}
+        </label>
         <button 
           onClick={handleGPSDetect} 
           disabled={detecting}
           style={{
             background: "transparent",
             border: "none",
-            color: "#e8923a",
+            color: isLight ? "#19a85a" : "#79cf8a",
             cursor: "pointer",
             fontSize: "11px",
-            fontWeight: 600,
+            fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.5px",
             display: "flex",
@@ -153,11 +184,11 @@ export default function LocationSelector({ district, setDistrict, place, setPlac
             gap: "4px"
           }}
         >
-          {detecting ? "📍 Detecting..." : "📍 Auto Detect"}
+          {detecting ? `📍 ${t("common.detecting", { defaultValue: "Detecting..." })}` : `📍 ${t("common.autoDetect", { defaultValue: "Auto Detect" })}`}
         </button>
       </div>
       
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
         
         {/* District Selector */}
         <div ref={dropdownRef} style={{ position: "relative" }}>
@@ -165,53 +196,63 @@ export default function LocationSelector({ district, setDistrict, place, setPlac
             onClick={() => setShowDistricts(!showDistricts)}
             style={{
               width: "100%",
-              padding: "14px 16px",
-              background: district ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.07)",
-              border: districtError ? "1px solid #e74c3c" : (showDistricts ? "1px solid rgba(232,146,58,0.7)" : "1px solid rgba(255,255,255,0.15)"),
+              padding: "13px 16px",
+              background: triggerBg,
+              border: districtError ? "1px solid #e74c3c" : (showDistricts ? triggerBorderActive : triggerBorder),
               borderRadius: 12,
-              color: district ? "white" : "rgba(255,255,255,0.45)",
-              fontSize: 15,
+              color: district ? textColor : placeholderColor,
+              fontSize: 14,
+              fontWeight: district ? 600 : 400,
               cursor: "pointer",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              transition: "all 0.2s ease"
+              transition: "all 0.2s ease",
+              boxShadow: isLight ? "0 2px 8px rgba(15,23,42,0.03)" : "none"
             }}
           >
-            {district || "Select District..."}
-            <span style={{ fontSize: "12px", opacity: 0.8 }}>▼</span>
+            <span style={{ color: district ? textColor : placeholderColor }}>
+              {district || t("donor.selectDistrict", { defaultValue: "Select District..." })}
+            </span>
+            <span style={{ 
+              fontSize: "11px", 
+              color: isLight ? "#19a85a" : "#79cf8a", 
+              transform: showDistricts ? "rotate(180deg)" : "none", 
+              transition: "transform 0.2s ease" 
+            }}>
+              ▼
+            </span>
           </div>
           {districtError && <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "6px", fontWeight: 500 }}>{districtError}</div>}
 
           {showDistricts && (
             <div style={{
               position: "absolute",
-              top: "100%",
+              top: "calc(100% + 6px)",
               left: 0,
               right: 0,
-              marginTop: 4,
-              background: "#1a3a2a", 
-              border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: 12,
+              background: menuBg,
+              border: menuBorder,
+              borderRadius: 14,
               zIndex: 9999,
-              maxHeight: "40vh",
+              maxHeight: "320px",
               overflowY: "auto",
-              boxShadow: "0 8px 40px rgba(0,0,0,0.25)",
+              boxShadow: menuShadow,
               boxSizing: "border-box"
             }}>
-              <div style={{ padding: 10, borderBottom: "1px solid rgba(255,255,255,0.1)", position: "sticky", top: 0, background: "#1a3a2a", zIndex: 10000 }}>
+              <div style={{ padding: "10px 12px", borderBottom: searchBorderBottom, position: "sticky", top: 0, background: menuBg, zIndex: 10000 }}>
                 <input 
                   type="text" 
-                  placeholder="Search district..." 
+                  placeholder={t("donor.searchDistrict", { defaultValue: "Search district..." })} 
                   value={districtSearch}
                   onChange={(e) => setDistrictSearch(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: "10px 14px",
+                    padding: "9px 12px",
                     borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background: "rgba(255,255,255,0.05)",
-                    color: "white",
+                    border: searchInputBorder,
+                    background: searchInputBg,
+                    color: textColor,
                     fontSize: 14,
                     outline: "none",
                     boxSizing: "border-box"
@@ -219,50 +260,71 @@ export default function LocationSelector({ district, setDistrict, place, setPlac
                   autoFocus
                 />
               </div>
-              <div style={{ padding: "4px 0" }}>
+              <div style={{ padding: "6px" }}>
                 {filteredDistricts.length === 0 ? (
                   <div style={{ 
                     padding: "16px 12px", 
-                    color: "rgba(255,255,255,0.45)", 
+                    color: placeholderColor, 
                     fontSize: "14px",
                     textAlign: "center"
                   }}>
-                    No districts found
+                    {t("donor.noDistrictsFound", { defaultValue: "No districts found" })}
                   </div>
                 ) : (
-                  filteredDistricts.map(d => (
-                    <div 
-                      key={d}
-                      onClick={() => {
-                        setDistrict(d);
-                        setPlace(""); 
-                        setShowDistricts(false);
-                        setDistrictSearch("");
-                      }}
-                      style={{
-                        padding: "12px 16px",
-                        color: district === d ? "white" : "white",
-                        background: district === d ? "#0078d7" : "transparent", // Blue to match native select highlight
-                        cursor: "pointer",
-                        fontSize: "15px",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (district !== d) e.target.style.background = "#0078d7"; // Blue hover
-                      }}
-                      onMouseLeave={(e) => {
-                        if (district !== d) e.target.style.background = "transparent";
-                      }}
-                    >
-                      {d}
-                    </div>
-                  ))
+                  filteredDistricts.map(d => {
+                    const isSelected = district === d;
+                    return (
+                      <div 
+                        key={d}
+                        onClick={() => {
+                          setDistrict(d);
+                          setPlace(""); 
+                          setShowDistricts(false);
+                          setDistrictSearch("");
+                        }}
+                        style={{
+                          padding: "10px 14px",
+                          borderRadius: 8,
+                          color: isSelected 
+                            ? (isLight ? "#19a85a" : "#ffffff") 
+                            : textColor,
+                          background: isSelected 
+                            ? (isLight ? "rgba(25,168,90,0.12)" : "linear-gradient(135deg, #124b55, #19a85a)") 
+                            : "transparent",
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          transition: "all 0.15s ease",
+                          marginBottom: 2
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.background = isLight ? "rgba(25,168,90,0.08)" : "rgba(255,255,255,0.08)";
+                            e.currentTarget.style.color = isLight ? "#124b55" : "#ffffff";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color = textColor;
+                          }
+                        }}
+                      >
+                        <span>{d}</span>
+                        {isSelected && <span style={{ color: isLight ? "#19a85a" : "#ffffff", fontWeight: 800 }}>✓</span>}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
           )}
         </div>
 
-        {/* Place Selector */}
+        {/* Place / Area Selector */}
         <div ref={placeRef} style={{ position: "relative" }}>
           <div 
             onClick={() => {
@@ -270,54 +332,64 @@ export default function LocationSelector({ district, setDistrict, place, setPlac
             }}
             style={{
               width: "100%",
-              padding: "14px 16px",
-              background: district ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.02)",
-              border: placeError ? "1px solid #e74c3c" : (showPlaces ? "1px solid rgba(232,146,58,0.7)" : "1px solid rgba(255,255,255,0.15)"),
+              padding: "13px 16px",
+              background: triggerBg,
+              border: placeError ? "1px solid #e74c3c" : (showPlaces ? triggerBorderActive : triggerBorder),
               borderRadius: 12,
-              color: place ? "white" : "rgba(255,255,255,0.45)",
-              fontSize: 15,
+              color: place ? textColor : placeholderColor,
+              fontSize: 14,
+              fontWeight: place ? 600 : 400,
               cursor: district ? "pointer" : "not-allowed",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
               transition: "all 0.2s ease",
-              opacity: district ? 1 : 0.6
+              opacity: district ? 1 : 0.6,
+              boxShadow: isLight ? "0 2px 8px rgba(15,23,42,0.03)" : "none"
             }}
           >
-            {place || "Select area..."}
-            <span style={{ fontSize: "12px", opacity: 0.8 }}>▼</span>
+            <span style={{ color: place ? textColor : placeholderColor }}>
+              {place || t("donor.selectArea", { defaultValue: "Select area..." })}
+            </span>
+            <span style={{ 
+              fontSize: "11px", 
+              color: isLight ? "#19a85a" : "#79cf8a", 
+              transform: showPlaces ? "rotate(180deg)" : "none", 
+              transition: "transform 0.2s ease" 
+            }}>
+              ▼
+            </span>
           </div>
           {placeError && <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "6px", fontWeight: 500 }}>{placeError}</div>}
 
           {showPlaces && district && (
             <div style={{
               position: "absolute",
-              top: "100%",
+              top: "calc(100% + 6px)",
               left: 0,
               right: 0,
-              marginTop: 4,
-              background: "#1a3a2a", 
-              border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: 12,
+              background: menuBg,
+              border: menuBorder,
+              borderRadius: 14,
               zIndex: 9999,
-              maxHeight: "40vh",
+              maxHeight: "320px",
               overflowY: "auto",
-              boxShadow: "0 8px 40px rgba(0,0,0,0.25)",
+              boxShadow: menuShadow,
               boxSizing: "border-box"
             }}>
-              <div style={{ padding: 10, borderBottom: "1px solid rgba(255,255,255,0.1)", position: "sticky", top: 0, background: "#1a3a2a", zIndex: 10000 }}>
+              <div style={{ padding: "10px 12px", borderBottom: searchBorderBottom, position: "sticky", top: 0, background: menuBg, zIndex: 10000 }}>
                 <input 
                   type="text" 
-                  placeholder="Search area..." 
+                  placeholder={t("donor.searchArea", { defaultValue: "Search area..." })} 
                   value={placeSearch}
                   onChange={(e) => setPlaceSearch(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: "10px 14px",
+                    padding: "9px 12px",
                     borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background: "rgba(255,255,255,0.05)",
-                    color: "white",
+                    border: searchInputBorder,
+                    background: searchInputBg,
+                    color: textColor,
                     fontSize: 14,
                     outline: "none",
                     boxSizing: "border-box"
@@ -325,42 +397,63 @@ export default function LocationSelector({ district, setDistrict, place, setPlac
                   autoFocus
                 />
               </div>
-              <div style={{ padding: "4px 0" }}>
+              <div style={{ padding: "6px" }}>
                 {filteredPlaces.length === 0 ? (
                   <div style={{ 
                     padding: "16px 12px", 
-                    color: "rgba(255,255,255,0.45)", 
+                    color: placeholderColor, 
                     fontSize: "14px",
                     textAlign: "center"
                   }}>
-                    No areas found
+                    {t("donor.noAreasFound", { defaultValue: "No areas found" })}
                   </div>
                 ) : (
-                  filteredPlaces.map(p => (
-                    <div 
-                      key={p}
-                      onClick={() => {
-                        setPlace(p); 
-                        setShowPlaces(false);
-                        setPlaceSearch("");
-                      }}
-                      style={{
-                        padding: "12px 16px",
-                        color: place === p ? "white" : "white",
-                        background: place === p ? "#0078d7" : "transparent",
-                        cursor: "pointer",
-                        fontSize: "15px",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (place !== p) e.target.style.background = "#0078d7";
-                      }}
-                      onMouseLeave={(e) => {
-                        if (place !== p) e.target.style.background = "transparent";
-                      }}
-                    >
-                      {p}
-                    </div>
-                  ))
+                  filteredPlaces.map(p => {
+                    const isSelected = place === p;
+                    return (
+                      <div 
+                        key={p}
+                        onClick={() => {
+                          setPlace(p); 
+                          setShowPlaces(false);
+                          setPlaceSearch("");
+                        }}
+                        style={{
+                          padding: "10px 14px",
+                          borderRadius: 8,
+                          color: isSelected 
+                            ? (isLight ? "#19a85a" : "#ffffff") 
+                            : textColor,
+                          background: isSelected 
+                            ? (isLight ? "rgba(25,168,90,0.12)" : "linear-gradient(135deg, #124b55, #19a85a)") 
+                            : "transparent",
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          transition: "all 0.15s ease",
+                          marginBottom: 2
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.background = isLight ? "rgba(25,168,90,0.08)" : "rgba(255,255,255,0.08)";
+                            e.currentTarget.style.color = isLight ? "#124b55" : "#ffffff";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color = textColor;
+                          }
+                        }}
+                      >
+                        <span>{p}</span>
+                        {isSelected && <span style={{ color: isLight ? "#19a85a" : "#ffffff", fontWeight: 800 }}>✓</span>}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

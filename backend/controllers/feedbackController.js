@@ -6,11 +6,11 @@ const Notification = require("../models/Notification");
 // ✅ CREATE FEEDBACK (NGO submits rating after delivery)
 const createFeedback = async (req, res) => {
   try {
-    const { rating, comment, donorId, donationId, requestId } = req.body;
+    const { rating, comment, donorId, volunteerId, donationId, requestId } = req.body;
     const ngoId = req.user._id;
 
     // Validation
-    if (!rating || !donorId || !requestId) {
+    if (!rating || (!donorId && !volunteerId) || !requestId || (donorId && volunteerId)) {
       return res.status(400).json({ 
         success: false, 
         message: "Rating, Donor ID, and Request ID are required" 
@@ -41,7 +41,19 @@ const createFeedback = async (req, res) => {
     }
 
     // Check if feedback already exists for this request
-    const existingFeedback = await Feedback.findOne({ requestId });
+    if (req.user.role !== "ngo") {
+      return res.status(403).json({ success: false, message: "Only NGOs can submit delivery feedback" });
+    }
+
+    if (request.ngoId.toString() !== ngoId.toString()) {
+      return res.status(403).json({ success: false, message: "You can rate only your own deliveries" });
+    }
+
+    if (volunteerId && request.volunteerId?.toString() !== volunteerId.toString()) {
+      return res.status(400).json({ success: false, message: "Volunteer is not assigned to this delivery" });
+    }
+
+    const existingFeedback = await Feedback.findOne({ requestId, ...(volunteerId ? { volunteerId } : { donorId }) });
     if (existingFeedback) {
       return res.status(400).json({ 
         success: false, 
@@ -53,7 +65,8 @@ const createFeedback = async (req, res) => {
     const newFeedback = new Feedback({
       rating,
       comment: comment || "",
-      donorId,
+      donorId: donorId || undefined,
+      volunteerId: volunteerId || undefined,
       ngoId,
       donationId: donationId || null,
       requestId,
@@ -63,23 +76,24 @@ const createFeedback = async (req, res) => {
     await newFeedback.save();
 
     // Update request with feedback submitted flag
-    await Request.findByIdAndUpdate(requestId, { feedbackSubmitted: true });
+    await Request.findByIdAndUpdate(requestId, volunteerId ? { volunteerFeedbackSubmitted: true } : { feedbackSubmitted: true });
 
     // Update donor rating statistics
-    await updateDonorRating(donorId);
+    if (donorId) await updateDonorRating(donorId);
+    if (volunteerId) await updateVolunteerRating(volunteerId);
 
     // Notify Donor
     await Notification.create({
-      recipientId: donorId,
-      message: `${req.user.name || 'An NGO'} left a ${rating}-star feedback on your food donation.`,
+      recipientId: volunteerId || donorId,
+      message: `${req.user.name || 'An NGO'} left a ${rating}-star feedback on your delivery.`,
       type: 'feedback_received',
       relatedId: newFeedback._id
     });
     const io = req.app.get("io");
     if (io) {
-      io.to(donorId.toString()).emit("new_notification", {
-        recipientId: donorId,
-        message: `${req.user.name || 'An NGO'} left a ${rating}-star feedback on your food donation.`,
+      io.to((volunteerId || donorId).toString()).emit("new_notification", {
+        recipientId: volunteerId || donorId,
+        message: `${req.user.name || 'An NGO'} left a ${rating}-star feedback on your delivery.`,
         type: 'feedback_received',
         relatedId: newFeedback._id
       });
@@ -106,6 +120,7 @@ const getAllFeedbacks = async (req, res) => {
     const feedbacks = await Feedback.find()
       .populate("donorId", "name email organization")
       .populate("ngoId", "name organization")
+      .populate("volunteerId", "name organization")
       .populate("requestId", "status")
       .sort({ createdAt: -1 });
 
@@ -155,6 +170,20 @@ const getFeedbacksByDonor = async (req, res) => {
       message: "Server Error", 
       error: error.message 
     });
+  }
+};
+
+const getFeedbacksByVolunteer = async (req, res) => {
+  try {
+    const feedbacks = await Feedback.find({ volunteerId: req.params.volunteerId })
+      .populate("ngoId", "name organization")
+      .populate("requestId", "status")
+      .sort({ createdAt: -1 });
+    const volunteer = await User.findById(req.params.volunteerId).select("name averageRating totalRatings totalFeedback");
+    if (!volunteer) return res.status(404).json({ success: false, message: "Volunteer not found" });
+    res.json({ success: true, volunteer, feedbacks, count: feedbacks.length });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server Error", error: error.message });
   }
 };
 
@@ -213,6 +242,7 @@ const getFeedbacksSubmittedByNgo = async (req, res) => {
     if (req.user.role === 'ngo') {
       feedbacks = await Feedback.find({ ngoId: userId })
         .populate("donorId", "name email organization averageRating")
+        .populate("volunteerId", "name email averageRating")
         .populate("requestId", "status")
         .sort({ createdAt: -1 });
     } else if (req.user.role === 'donor') {
@@ -290,8 +320,8 @@ const updateFeedback = async (req, res) => {
 
     await feedback.save();
 
-    // Recalculate donor rating
-    await updateDonorRating(feedback.donorId);
+    if (feedback.donorId) await updateDonorRating(feedback.donorId);
+    if (feedback.volunteerId) await updateVolunteerRating(feedback.volunteerId);
 
     res.status(200).json({ 
       success: true, 
@@ -330,10 +360,11 @@ const deleteFeedback = async (req, res) => {
     }
 
     const donorId = feedback.donorId;
+    const volunteerId = feedback.volunteerId;
     await Feedback.deleteOne({ _id: feedbackId });
 
-    // Recalculate donor rating
-    await updateDonorRating(donorId);
+    if (donorId) await updateDonorRating(donorId);
+    if (volunteerId) await updateVolunteerRating(volunteerId);
 
     res.status(200).json({ 
       success: true, 
@@ -412,6 +443,16 @@ const updateDonorRating = async (donorId) => {
   }
 };
 
+const updateVolunteerRating = async (volunteerId) => {
+  const feedbacks = await Feedback.find({ volunteerId });
+  const totalRating = feedbacks.reduce((sum, feedback) => sum + feedback.rating, 0);
+  await User.findByIdAndUpdate(volunteerId, {
+    averageRating: feedbacks.length ? parseFloat((totalRating / feedbacks.length).toFixed(1)) : 0,
+    totalRatings: feedbacks.length,
+    totalFeedback: feedbacks.length
+  });
+};
+
 // ✅ GET PENDING FEEDBACKS
 const getFeedbacksPending = async (req, res) => {
   try {
@@ -454,6 +495,7 @@ module.exports = {
   createFeedback, 
   getAllFeedbacks,
   getFeedbacksByDonor,
+  getFeedbacksByVolunteer,
   getFeedbacksReceivedByNgo,
   getFeedbacksSubmittedByNgo,
   getFeedbacksPending,

@@ -24,7 +24,7 @@ const moneyRequestSchema = new mongoose.Schema({
   },
   documents: {
     needStatement: { type: String, required: true },
-    registrationCertificate: { type: String, required: true },
+    registrationCertificate: { type: String, default: "" },
     bankDetails: { type: String, required: true },
     usageReport: { type: String } // optional
   },

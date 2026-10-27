@@ -193,7 +193,10 @@ Import the endpoints from API_TESTING_GUIDE.md
 ## 🐛 Troubleshooting
 
 ### Issue: "Cannot connect to MongoDB"
-- Solution in: **GETTING_STARTED.md** → Troubleshooting section
+- Make sure MongoDB is running locally when `MONGO_URI` is
+  `mongodb://127.0.0.1:27017/foodDonationDB`, or set `backend/.env` to a reachable
+  MongoDB Atlas connection string. The backend now reports which configuration
+  needs attention when the connection fails.
 
 ### Issue: "CORS Error"
 - Solution in: **GETTING_STARTED.md** → Troubleshooting section

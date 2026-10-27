@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { createMoneyDonation } from "../api/moneyDonation";
 import ChatWidget from "./ChatWidget";
+import CustomPaymentGateway from "./CustomPaymentGateway";
 import { COLORS } from "../theme";
 import toast from "react-hot-toast";
 
@@ -13,16 +14,22 @@ const PAYMENT_METHODS = [
     subtitle: "Visa / Mastercard — Instant & secure"
   },
   {
+    id: "qr",
+    icon: "▦",
+    title: "QR Payment",
+    subtitle: "Scan NGO QR and upload receipt"
+  },
+  {
     id: "bank_transfer",
     icon: "🏦",
     title: "Bank Transfer",
-    subtitle: "Direct to NGO bank — No gateway fee"
+    subtitle: "Transfer to the NGO bank account"
   },
   {
     id: "cash_handover",
-    icon: "💵",
-    title: "Cash Hand Over",
-    subtitle: "Meet NGO in person — Local donors"
+    icon: "🤝",
+    title: "Cash Handover",
+    subtitle: "Arrange a direct handover with the NGO"
   }
 ];
 
@@ -32,7 +39,7 @@ const METHOD_LABELS = {
   cash_handover: "Cash Hand Over"
 };
 
-const CHAT_METHODS = ["bank_transfer", "cash_handover"];
+const CHAT_METHODS = [];
 
 function InfoRow({ label, value }) {
   if (!value) return null;
@@ -52,6 +59,31 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
   const [receiptFile, setReceiptFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [confirmation, setConfirmation] = useState(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptBlobUrl, setReceiptBlobUrl] = useState(null);
+
+  useEffect(() => {
+    if (showReceipt && confirmation?.donation?.receiptUrl) {
+      fetch(confirmation.donation.receiptUrl)
+        .then(res => res.blob())
+        .then(blob => {
+          const url = URL.createObjectURL(blob);
+          setReceiptBlobUrl(url);
+        })
+        .catch(err => {
+          console.error("Error fetching receipt for iframe:", err);
+          setReceiptBlobUrl(confirmation.donation.receiptUrl);
+        });
+    }
+    
+    return () => {
+      if (receiptBlobUrl && receiptBlobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(receiptBlobUrl);
+      }
+    };
+  }, [showReceipt, confirmation?.donation?.receiptUrl]);
 
   if (!open || !fundraiser) return null;
 
@@ -67,6 +99,9 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
     setDonorNote("");
     setReceiptFile(null);
     setShowChat(false);
+    setConfirmation(null);
+    setPendingConfirmation(null);
+    setShowReceipt(false);
     onClose();
   };
 
@@ -90,17 +125,12 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
     if (!validateAmount()) return;
     setSelectedMethod(methodId);
     setShowChat(false);
-    setStep("details");
+    setStep(methodId === "online" || methodId === "qr" ? "custom_checkout" : "details");
   };
 
   const handleOnlinePay = () => {
     if (!validateAmount()) return;
-    onOnlinePay({
-      amount,
-      requestId: fundraiser._id,
-      purpose: fundraiser.purpose,
-      maxAmount: remainingAmount
-    });
+    setPendingConfirmation({ method: "online", action: "redirect" });
   };
 
 
@@ -113,6 +143,22 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
       return;
     }
 
+    setPendingConfirmation({ method });
+  };
+
+  const confirmPendingDonation = async () => {
+    const method = pendingConfirmation?.method;
+    if (!method) return;
+    setPendingConfirmation(null);
+    if (pendingConfirmation.action === "redirect") {
+      onOnlinePay({
+        amount,
+        requestId: fundraiser._id,
+        purpose: fundraiser.purpose,
+        maxAmount: remainingAmount
+      });
+      return;
+    }
     setLoading(true);
     try {
       const fd = new FormData();
@@ -123,12 +169,11 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
       if (receiptFile) fd.append("receipt", receiptFile);
 
       const res = await createMoneyDonation(fd);
-      toast.success(
-        method === "cash_handover"
-          ? "Handover request sent! NGO will confirm once received."
-          : "Donation submitted! NGO will verify and confirm."
-      );
-      resetAndClose();
+      setConfirmation({
+        donation: res?.data,
+        method,
+        pending: true
+      });
       onSuccess?.(res?.data);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to submit donation");
@@ -136,6 +181,8 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
       setLoading(false);
     }
   };
+
+  const methodLabel = METHOD_LABELS[pendingConfirmation?.method] || "Payment";
 
   const renderBankDetails = () => (
     <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: 16, marginBottom: 16, textAlign: "left" }}>
@@ -267,6 +314,44 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
     return null;
   };
 
+  if (step === "custom_checkout" && !confirmation) {
+    return createPortal(
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 999999, display: "flex", alignItems: "center", justifyContent: "center", padding: 40, boxSizing: "border-box", overflowY: 'auto' }}>
+        <div style={{ width: '100%', maxWidth: 850 }}>
+          <CustomPaymentGateway 
+            amount={amount} 
+            qrCodeImage={settings.qrCodeImage}
+            initialMethod={selectedMethod}
+            onChangeAmount={() => setStep("amount")}
+            onCancel={resetAndClose}
+            onPay={async (method, receiptFile) => {
+              try {
+                const data = method === "qr" ? (() => {
+                  const fd = new FormData();
+                  fd.append("moneyRequestId", fundraiser._id);
+                  fd.append("amount", Number(amount));
+                  fd.append("donationMethod", "qr_payment");
+                  fd.append("receipt", receiptFile);
+                  return fd;
+                })() : { moneyRequestId: fundraiser._id, amount: Number(amount), donationMethod: "online", paymentStatus: "success" };
+                const res = await createMoneyDonation(data);
+                setConfirmation({
+                  donation: res?.data,
+                  method,
+                  pending: method === "qr"
+                });
+                onSuccess?.(res?.data);
+              } catch (err) {
+                toast.error(err?.response?.data?.message || "Payment failed");
+              }
+            }} 
+          />
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
   return createPortal(
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 999999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box" }}>
       <div style={{
@@ -281,7 +366,56 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
         boxShadow: "0 32px 64px rgba(0,0,0,0.5)",
         boxSizing: "border-box"
       }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
+        {pendingConfirmation ? (
+          <div style={{ textAlign: "center", padding: "12px 4px 8px" }}>
+            <div style={{ width: 68, height: 68, borderRadius: "50%", background: "rgba(232,146,58,0.16)", border: `2px solid ${COLORS.amber}`, color: COLORS.amber, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", fontSize: 30 }}>✓</div>
+            <div style={{ color: COLORS.amber, fontSize: 11, fontWeight: 800, letterSpacing: 2, marginBottom: 9 }}>CONFIRM DONATION</div>
+            <h2 style={{ color: "white", margin: "0 0 10px", fontSize: 25 }}>Ready to complete your donation?</h2>
+            <p style={{ color: "rgba(255,255,255,0.62)", margin: "0 0 22px", fontSize: 14, lineHeight: 1.6 }}>You are donating this amount through {methodLabel.toLowerCase()}.</p>
+            <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: "16px 18px", marginBottom: 22 }}>
+              <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginBottom: 5 }}>TOTAL DONATION</div>
+              <div style={{ color: COLORS.amber, fontSize: 30, fontWeight: 800 }}>LKR {Number(amount).toLocaleString()}</div>
+              <div style={{ color: "white", fontSize: 13, marginTop: 8 }}>{methodLabel}</div>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setPendingConfirmation(null)} style={{ flex: 1, background: "rgba(255,255,255,0.07)", color: "white", border: "1px solid rgba(255,255,255,0.16)", padding: "14px 12px", borderRadius: 12, fontWeight: 700, cursor: "pointer" }}>Go Back</button>
+              <button onClick={confirmPendingDonation} style={{ flex: 1.35, background: COLORS.amber, color: COLORS.forest, border: "none", padding: "14px 12px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}>Confirm Donation</button>
+            </div>
+          </div>
+        ) : confirmation ? (
+          <div style={{ textAlign: "center", padding: "18px 4px 8px" }}>
+            <div style={{ width: 68, height: 68, borderRadius: 20, background: confirmation.pending ? "rgba(232,146,58,0.18)" : "rgba(126,200,160,0.18)", border: `2px solid ${confirmation.pending ? COLORS.amber : COLORS.mint}`, color: confirmation.pending ? COLORS.amber : COLORS.mint, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28, fontWeight: 800 }}>
+              {confirmation.pending ? "⌛" : "✓"}
+            </div>
+            
+            <div style={{ color: COLORS.amber, fontSize: 12, fontWeight: 800, letterSpacing: 2, marginBottom: 8 }}>MEALBRIDGE</div>
+            <h2 style={{ color: "white", margin: "0 0 8px", fontSize: 25 }}>
+              {confirmation.pending ? "Payment Submitted!" : "Payment Success!"}
+            </h2>
+            <p style={{ color: "rgba(255,255,255,0.62)", margin: "0 0 22px", fontSize: 14, lineHeight: 1.6 }}>
+              {confirmation.pending ? "Your payment details were sent to the NGO. They will verify and confirm your donation." : "Your donation was completed successfully. Your receipt has been sent to your email."}
+            </p>
+            
+            <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 14, padding: "8px 16px", textAlign: "left", marginBottom: 20 }}>
+              <InfoRow label="Amount" value={`LKR ${Number(confirmation.donation?.amount || amount).toLocaleString()}`} />
+              <InfoRow label="Ref Number" value={`#${confirmation.donation?._id?.substring(0, 8) || "PENDING"}`} />
+              <InfoRow label="Payment method" value={confirmation.method === "qr" ? "QR Payment" : confirmation.method === "paypal" ? "PayPal" : "Online Card"} />
+              <InfoRow label="Campaign" value={fundraiser.purpose} />
+            </div>
+
+            <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
+              <button onClick={resetAndClose} style={{ flex: 1, background: "rgba(255,255,255,0.08)", color: "white", border: "1px solid rgba(255,255,255,0.16)", padding: "14px 16px", borderRadius: 12, fontWeight: 700, cursor: "pointer" }}>
+                Done
+              </button>
+              
+              {confirmation.donation?.receiptUrl && (
+                <button onClick={() => setShowReceipt(true)} style={{ flex: 1.5, background: COLORS.mint, color: COLORS.forest, border: "none", padding: "14px 16px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}>
+                  View Receipt
+                </button>
+              )}
+            </div>
+          </div>
+        ) : <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 11, color: COLORS.amber, fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>DONATE NOW</div>
           <h2 style={{ color: "white", margin: "0 0 8px", fontSize: 24 }}>{fundraiser.purpose}</h2>
           <p style={{ color: "rgba(255,255,255,0.55)", margin: 0, fontSize: 13 }}>
@@ -290,9 +424,9 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
           <p style={{ color: goalReached ? "#f87171" : COLORS.mint, margin: "8px 0 0", fontSize: 13, fontWeight: 600 }}>
             {goalReached ? "Goal fully funded" : `Remaining: LKR ${remainingAmount.toLocaleString()}`}
           </p>
-        </div>
+        </div>}
 
-        {step === "amount" && (
+        {!confirmation && step === "amount" && (
           <>
             <input
               type="number"
@@ -319,7 +453,7 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
           </>
         )}
 
-        {step === "method" && (
+        {!confirmation && step === "method" && (
           <>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 14, textAlign: "center" }}>
               Donating <b style={{ color: "white" }}>LKR {Number(amount).toLocaleString()}</b> — choose how to pay
@@ -358,7 +492,7 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
           </>
         )}
 
-        {step === "details" && (
+        {!confirmation && step === "details" && (
           <>
             <div style={{ fontSize: 12, color: COLORS.mint, fontWeight: 700, marginBottom: 16, textAlign: "center" }}>
               {METHOD_LABELS[selectedMethod]} • LKR {Number(amount).toLocaleString()}
@@ -370,10 +504,35 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
           </>
         )}
 
-        <button onClick={resetAndClose} style={{ display: "block", margin: "20px auto 0", background: "none", border: "none", color: "rgba(255,255,255,0.45)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}>
+        {!confirmation && <button onClick={resetAndClose} style={{ display: "block", margin: "20px auto 0", background: "none", border: "none", color: "rgba(255,255,255,0.45)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}>
           Cancel
-        </button>
+        </button>}
       </div>
+
+      {showReceipt && confirmation?.donation?.receiptUrl && createPortal(
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box" }} onClick={() => setShowReceipt(false)}>
+          <div style={{ background: "#f8fafc", padding: 16, borderRadius: 16, width: "100%", maxWidth: 800, height: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 25px 60px rgba(0,0,0,0.5)", overflow: "hidden" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, padding: "0 8px" }}>
+              <h3 style={{ color: "#111", margin: 0, fontSize: 18, fontWeight: 700 }}>🧾 Your Donation Receipt</h3>
+              <button onClick={() => setShowReceipt(false)} style={{ background: "rgba(15,23,42,0.1)", border: "none", color: "#111", fontSize: 20, width: 36, height: 36, borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+            </div>
+            <div style={{ flex: 1, overflow: "hidden", borderRadius: 12, border: "1px solid rgba(15,23,42,0.1)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {receiptBlobUrl ? (
+                <iframe src={receiptBlobUrl} style={{ width: "100%", height: "100%", border: "none" }} title="Receipt Document" />
+              ) : (
+                <div style={{ color: "#6b7280" }}>Loading receipt...</div>
+              )}
+            </div>
+            <div style={{ marginTop: 16, display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowReceipt(false)} style={{ background: "rgba(15,23,42,0.06)", color: "#111", border: "none", padding: "12px 24px", borderRadius: 12, fontWeight: 600, cursor: "pointer" }}>Close</button>
+              <a href={confirmation.donation.receiptUrl} download={`Donation_Receipt_${confirmation.donation._id}.pdf`} target="_blank" rel="noreferrer" style={{ background: COLORS.mint, color: COLORS.forest, textDecoration: "none", padding: "12px 24px", borderRadius: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                ⬇ Download PDF
+              </a>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>,
     document.body
   );

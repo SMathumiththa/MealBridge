@@ -1,10 +1,12 @@
 import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { registerUser } from "../api/auth";
 import FloatingFood from "../components/FloatingFood";
 
 export default function Register({ theme = "dark" }) {
   const isLight = theme === "light";
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   
@@ -110,8 +112,8 @@ export default function Register({ theme = "dark" }) {
   };
 
   const pageBg = isLight
-    ? "radial-gradient(ellipse at 20% 20%, #ffffff 0%, #f8fafc 40%, #e2e8f0 70%, #d6d8de 100%)"
-    : "radial-gradient(ellipse at 20% 20%, #2d5a3d 0%, #1a3a2a 40%, #0f2219 70%, #08150e 100%)";
+    ? "linear-gradient(135deg, #f4f8f7, #dcefeb, #79cf8a)"
+    : "linear-gradient(135deg, #073b65, #124b55, #167d78)";
   const cardBg = isLight ? "rgba(255,255,255,0.95)" : "rgba(35, 53, 41, 0.4)";
   const cardBorder = isLight ? "1px solid rgba(15,23,42,0.12)" : "1px solid rgba(255,255,255,0.05)";
   const formText = isLight ? "#0f172a" : "white";
@@ -170,10 +172,10 @@ export default function Register({ theme = "dark" }) {
               <div style={{ flex: 1, height: "4px", borderRadius: "2px", background: step === 2 ? "#e8923a" : "rgba(255,255,255,0.15)", transition: "background 0.3s" }} />
             </div>
             <p style={{ color: "#d68840", fontSize: "12px", fontWeight: "700", letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: "8px" }}>
-              JOIN THE COMMUNITY · STEP {step} OF 2
+              {t('auth.joinCommunity')} · {step === 1 ? t('auth.step1') : t('auth.step2')}
             </p>
             <h2 style={{ color: "white", fontSize: "32px", fontWeight: "700", margin: 0 }}>
-              {step === 1 ? "Create your account" : "Tell us more"}
+              {step === 1 ? t('auth.createAccount') : "Tell us more"}
             </h2>
           </div>
 
@@ -183,9 +185,9 @@ export default function Register({ theme = "dark" }) {
           {step === 1 && (
             <div style={{ animation: "slideUp 0.3s ease" }}>
               <div style={{ marginBottom: "24px" }}>
-                <label style={labelStyle}>I WANT TO JOIN AS</label>
+                <label style={labelStyle}>{t('auth.joinAs')}</label>
                 <div style={{ display: "flex", gap: "10px" }}>
-                  {[{id: "donor", label: "🤝 Donor"}, {id: "ngo", label: "🏢 NGO"}, {id: "volunteer", label: "🚚 Volunteer"}].map(r => (
+                  {[{id: "donor", label: t('auth.donor')}, {id: "ngo", label: t('auth.ngo')}, {id: "volunteer", label: t('auth.volunteer')}].map(r => (
                     <div key={r.id} onClick={() => setRole(r.id)} style={{
                       flex: 1, padding: "12px 8px", textAlign: "center", borderRadius: "12px", cursor: "pointer",
                       border: role === r.id ? "1px solid #e8923a" : "1px solid rgba(255,255,255,0.1)",
@@ -202,12 +204,12 @@ export default function Register({ theme = "dark" }) {
               </div>
 
               <div style={{ marginBottom: "20px" }}>
-                <label style={labelStyle}>FULL NAME</label>
+                <label style={labelStyle}>{t('auth.fullName')}</label>
                 <div style={{ position: "relative" }}>
                   <svg style={iconStyle} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                   <input 
                     type="text" 
-                    placeholder="Your full name"
+                    placeholder={t('auth.fullNamePlaceholder')}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     style={{ ...inputStyle, border: name && nameError ? "1px solid #ff4d4f" : inputStyle.border }}
@@ -219,12 +221,12 @@ export default function Register({ theme = "dark" }) {
               </div>
 
               <div style={{ marginBottom: "20px", marginTop: name && nameError ? "12px" : "0" }}>
-                <label style={labelStyle}>EMAIL</label>
+                <label style={labelStyle}>{t('auth.email')}</label>
                 <div style={{ position: "relative" }}>
                   <svg style={iconStyle} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                   <input 
                     type="email" 
-                    placeholder="your@email.com"
+                    placeholder={t('auth.emailPlaceholder')}
                     value={email}
                     onChange={(e) => setEmail(e.target.value.trim())}
                     style={{ ...inputStyle, border: email && emailError ? "1px solid #ff4d4f" : inputStyle.border }}
@@ -236,12 +238,12 @@ export default function Register({ theme = "dark" }) {
               </div>
 
               <div style={{ marginBottom: "20px", marginTop: email && emailError ? "12px" : "0" }}>
-                <label style={labelStyle}>PASSWORD</label>
+                <label style={labelStyle}>{t('auth.password')}</label>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "14px", filter: "opacity(0.8)" }}>🔒</span>
                   <input 
                     type={showPassword ? "text" : "password"}
-                    placeholder="Create a strong password"
+                    placeholder={t('auth.passwordPlaceholder')}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     style={{ ...inputStyle, border: password && passwordError ? "1px solid #ff4d4f" : inputStyle.border }}
@@ -263,12 +265,12 @@ export default function Register({ theme = "dark" }) {
               </div>
 
               <div style={{ marginBottom: "32px", marginTop: password && passwordError ? "12px" : "0" }}>
-                <label style={labelStyle}>CONFIRM PASSWORD</label>
+                <label style={labelStyle}>{t('auth.confirmPassword')}</label>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "14px", filter: "opacity(0.8)" }}>🔒</span>
                   <input 
                     type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Confirm your password"
+                    placeholder={t('auth.confirmPasswordPlaceholder')}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     style={{ ...inputStyle, border: confirmPassword && confirmPasswordError ? "1px solid #ff4d4f" : inputStyle.border }}
@@ -314,7 +316,7 @@ export default function Register({ theme = "dark" }) {
                 onMouseUp={(e) => isStep1Valid && !loading && (e.currentTarget.style.transform = "scale(1)")}
                 onMouseLeave={(e) => isStep1Valid && !loading && (e.currentTarget.style.transform = "scale(1)")}
               >
-                Continue →
+                {t('auth.nextStep')} →
               </button>
             </div>
           )}
@@ -322,12 +324,12 @@ export default function Register({ theme = "dark" }) {
           {step === 2 && (
             <div style={{ animation: "slideUp 0.3s ease" }}>
               <div style={{ marginBottom: "20px" }}>
-                <label style={labelStyle}>PHONE NUMBER</label>
+                <label style={labelStyle}>{t('auth.phone')}</label>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "14px", filter: "opacity(0.8)" }}>📱</span>
                   <input 
                     type="tel" 
-                    placeholder="e.g. 0771234567"
+                    placeholder={t('auth.phonePlaceholder')}
                     maxLength="10"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
@@ -340,12 +342,12 @@ export default function Register({ theme = "dark" }) {
               </div>
 
               <div style={{ marginBottom: "24px", marginTop: phone && phoneError ? "12px" : "0" }}>
-                <label style={labelStyle}>ORGANIZATION / RESTAURANT NAME</label>
+                <label style={labelStyle}>{t('auth.organization')}</label>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "14px", filter: "opacity(0.8)" }}>🏢</span>
                   <input 
                     type="text" 
-                    placeholder="e.g. Green Leaf Restaurant"
+                    placeholder={t('auth.organizationPlaceholder')}
                     value={organization}
                     onChange={(e) => setOrganization(e.target.value)}
                     style={inputStyle}
@@ -378,7 +380,7 @@ export default function Register({ theme = "dark" }) {
                   {termsAccepted && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
                 </div>
                 <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", lineHeight: "1.5", margin: 0, cursor: "pointer", userSelect: "none" }} onClick={() => setTermsAccepted(!termsAccepted)}>
-                  By registering, you agree to our Terms of Service and Community Guidelines. All donations are subject to food safety verification.
+                  {t('auth.acceptTerms')}
                 </p>
               </div>
 
@@ -405,7 +407,7 @@ export default function Register({ theme = "dark" }) {
                   onMouseOver={(e) => !loading && (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
                   onMouseOut={(e) => !loading && (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
                 >
-                  ← Back
+                  ← {t('auth.back')}
                 </button>
                 <button 
                   type="submit" 
@@ -432,14 +434,14 @@ export default function Register({ theme = "dark" }) {
                   onMouseUp={(e) => isStep2Valid && !loading && (e.currentTarget.style.transform = "scale(1)")}
                   onMouseLeave={(e) => isStep2Valid && !loading && (e.currentTarget.style.transform = "scale(1)")}
                 >
-                  {loading ? "Creating..." : "Create Account 🎉"}
+                  {loading ? t('auth.creatingAccount') : `${t('auth.createAccountBtn')} 🎉`}
                 </button>
               </div>
             </div>
           )}
 
           <p style={{ textAlign: "center", marginTop: "32px", fontSize: "14px", color: "#8b9c91" }}>
-            Already have an account? <Link to="/login" style={{ color: "#d68840", textDecoration: "none", fontWeight: "600", position: "relative", zIndex: 10 }}>Sign in</Link>
+            {t('auth.haveAccount')} <Link to="/login" style={{ color: "#d68840", textDecoration: "none", fontWeight: "600", position: "relative", zIndex: 10 }}>{t('auth.signIn')}</Link>
           </p>
         </form>
       </div>

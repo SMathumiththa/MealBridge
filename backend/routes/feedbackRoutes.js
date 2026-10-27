@@ -4,6 +4,7 @@ const {
   createFeedback, 
   getAllFeedbacks,
   getFeedbacksByDonor,
+  getFeedbacksByVolunteer,
   getFeedbacksReceivedByNgo,
   getFeedbacksSubmittedByNgo,
   getFeedbacksPending,
@@ -24,6 +25,8 @@ router.get("/donor/:donorId", getFeedbacksByDonor);
 
 // Get donor rating statistics
 router.get("/donor/:donorId/stats", getDonorRatingStats);
+
+router.get("/volunteer/:volunteerId", protect, getFeedbacksByVolunteer);
 
 // Get feedbacks submitted by current NGO user
 router.get("/my/submitted", protect, getFeedbacksSubmittedByNgo);

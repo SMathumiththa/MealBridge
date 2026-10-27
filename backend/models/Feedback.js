@@ -15,7 +15,12 @@ const feedbackSchema = new mongoose.Schema({
   donorId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true
+    required: false
+  },
+  volunteerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: false
   },
   ngoId: {
     type: mongoose.Schema.Types.ObjectId,

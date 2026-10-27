@@ -90,7 +90,7 @@ exports.registerUser = async (req, res) => {
       });
     }
 
-    const allowedRoles = ["donor", "ngo"];
+    const allowedRoles = ["donor", "ngo", "volunteer"];
     if (role && !allowedRoles.includes(role)) {
       return res.status(400).json({ success: false, message: "Invalid role" });
     }
@@ -551,10 +551,11 @@ exports.updatePassword = async (req, res) => {
   }
 };
 
-// GET Leaderboard (top donors by points)
+// GET leaderboard by points
 exports.getLeaderboard = async (req, res) => {
   try {
-    const top = await User.find({ role: 'donor' }).select('name organization points badge profileImage totalDonations').sort({ points: -1 }).limit(10);
+    const role = req.query.role || 'donor';
+    const top = await User.find({ role }).select('name organization points badge profileImage totalDonations averageRating').sort({ points: -1 }).limit(10);
     res.json({ success: true, data: top });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

@@ -90,8 +90,8 @@ export default function ForgotPassword({ theme = "dark" }) {
   };
 
   const pageBg = isLight
-    ? "radial-gradient(ellipse at 20% 20%, #ffffff 0%, #f8fafc 40%, #e2e8f0 70%, #d6d8de 100%)"
-    : "radial-gradient(ellipse at 20% 20%, #2d5a3d 0%, #1a3a2a 40%, #0f2219 70%, #08150e 100%)";
+    ? "linear-gradient(135deg, #f4f8f7, #dcefeb, #79cf8a)"
+    : "linear-gradient(135deg, #073b65, #124b55, #167d78)";
   const cardBg = isLight ? "rgba(255,255,255,0.95)" : "rgba(35, 53, 41, 0.4)";
   const cardBorder = isLight ? "1px solid rgba(15,23,42,0.12)" : "1px solid rgba(255,255,255,0.05)";
   const pageText = isLight ? "#0f172a" : "white";

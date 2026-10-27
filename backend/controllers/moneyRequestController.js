@@ -16,8 +16,8 @@ exports.createMoneyRequest = async (req, res) => {
       usageReport: files.usageReport ? files.usageReport[0].path : ""
     };
 
-    if (!documents.needStatement || !documents.registrationCertificate || !documents.bankDetails) {
-      return res.status(400).json({ success: false, message: "Missing required documents" });
+    if (!documents.needStatement || !documents.bankDetails) {
+      return res.status(400).json({ success: false, message: "Need statement and bank details are required" });
     }
 
     const image = files.image ? files.image[0].path : "";
@@ -43,9 +43,7 @@ exports.createMoneyRequest = async (req, res) => {
 exports.getMoneyRequests = async (req, res) => {
   try {
     let query = {};
-    if (req.user.role === 'donor') {
-      query.status = 'approved';
-    } else if (req.user.role === 'ngo') {
+    if (req.user.role === 'ngo') {
       query.ngoId = req.user._id;
     }
 

@@ -15,4 +15,19 @@ API.interceptors.request.use((req) => {
   return req;
 });
 
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const message = error.response?.data?.message;
+    if (error.response?.status === 403 && message === "Access denied: insufficient permissions") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      if (window.location.pathname !== "/login") {
+        window.location.replace("/login");
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default API;

@@ -30,6 +30,11 @@ export const getFeedbacksByDonor = async (donorId) => {
   }
 };
 
+export const getFeedbacksByVolunteer = async (volunteerId) => {
+  const response = await api.get(`/feedbacks/volunteer/${volunteerId}`);
+  return response.data;
+};
+
 // ✅ Get donor rating statistics
 export const getDonorRatingStats = async (donorId) => {
   try {

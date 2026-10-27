@@ -5,15 +5,15 @@ import { Toaster } from "react-hot-toast";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import "./index.css";
+import "./i18n";
 
 import { useState, useEffect } from "react";
-import { FloatingFood, FixedBrandLogo } from "./App";
+import { FloatingFood } from "./App";
 
 import ScrollToTop from "./components/ScrollToTop";
 
 export function AdminApp() {
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
-
   useEffect(() => {
     localStorage.setItem("theme", theme);
     document.body.classList.toggle("light-theme", theme === "light");
@@ -21,7 +21,7 @@ export function AdminApp() {
 
   const darkBg = {
     minHeight: "100vh",
-    background: "linear-gradient(135deg, #0f2219, #1a3a2a, #2d6347)",
+    background: "linear-gradient(135deg, #073b65, #124b55, #167d78)",
     color: "white",
     width: "100%",
     overflowX: "hidden",
@@ -29,10 +29,10 @@ export function AdminApp() {
 
   const lightBg = {
     minHeight: "100vh",
-    background: "linear-gradient(135deg, #f8fafc, #e2e8f0, #cbd5e1)",
+    background: "linear-gradient(135deg, #f4f8f7, #dcefeb, #79cf8a)",
     backgroundSize: "400% 400%",
     animation: "gradientFlow 10s ease infinite",
-    color: "#0f172a",
+    color: "#073b65",
     width: "100%",
     overflowX: "hidden",
   };
@@ -45,7 +45,7 @@ export function AdminApp() {
       <ScrollToTop />
       <div style={bgStyle}>
         <style>{`
-          html, body, #root { width: 100%; height: 100%; margin: 0; padding: 0; background: ${theme === "light" ? "#f8fafc" : "#0f2219"}; color: ${theme === "light" ? "#0f172a" : "#ffffff"}; max-width: none; }
+          html, body, #root { width: 100%; height: 100%; margin: 0; padding: 0; background: ${theme === "light" ? "#f4f8f7" : "#124b55"}; color: ${theme === "light" ? "#073b65" : "#ffffff"}; max-width: none; }
           * { box-sizing: border-box; }
           @keyframes gradientFlow { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
           
@@ -91,8 +91,6 @@ export function AdminApp() {
         </button>
 
         <FloatingFood count={16} />
-        <FixedBrandLogo theme={theme} />
-
         <Routes>
           <Route path="/" element={<Login theme={theme} isAdminPortal={true} />} />
           <Route path="/admin" element={<AdminDashboard theme={theme} />} />

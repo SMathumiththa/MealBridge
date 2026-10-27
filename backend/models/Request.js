@@ -35,6 +35,10 @@ const requestSchema = new mongoose.Schema({
   feedbackSubmitted: {
     type: Boolean,
     default: false
+  },
+  volunteerFeedbackSubmitted: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 

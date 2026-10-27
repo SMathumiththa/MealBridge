@@ -9,7 +9,7 @@ import LiveTracker from "./LiveTracker";
 const ChatWidget = ({ 
   requestId, moneyRequestId, currentUserId,
   compact = false, title = "Donation Chat",
-  currentUserRole, donorLocation
+  currentUserRole, donorLocation, ngoLocation, volunteerLocation
 }) => {
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState("");
@@ -108,6 +108,8 @@ const ChatWidget = ({
             roomId={roomId} 
             currentUserRole={currentUserRole} 
             donorLocation={donorLocation} 
+            ngoLocation={ngoLocation}
+            volunteerLocation={volunteerLocation}
           />
         </div>
       ) : (

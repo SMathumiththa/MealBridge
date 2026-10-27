@@ -1,48 +1,59 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { COLORS } from "../theme";
 
 export default function Sidebar({ role, activePage, onNav, onLogout, user, requestCount = 0, theme = "dark" }) {
   const [hov, setHov] = useState(null);
+  const { t } = useTranslation();
   const isLight = theme === "light";
 
   const navItems = {
     donor: [
-      { id: "donorHome", icon: "🏠", label: "Dashboard" },
-      { id: "donate", icon: "➕", label: "Post Donation" },
-      { id: "myDonations", icon: "📦", label: "My Donations" },
-      { id: "fundraisers", icon: "💰", label: "Fundraisers" },
-      { id: "impact", icon: "📊", label: "My Impact" },
-      { id: "requests", icon: "📋", label: "My Requests", badge: requestCount },
-      { id: "feedbacks", icon: "⭐", label: "Feedback & Ratings" },
-      { id: "profile", icon: "🏢", label: "Donor Profile" },
+      { id: "donorHome", icon: "🏠", label: t('sidebar.dashboard') },
+      { id: "donate", icon: "➕", label: t('sidebar.postDonation') },
+      { id: "myDonations", icon: "📦", label: t('sidebar.myDonations') },
+      { id: "fundraisers", icon: "💰", label: t('sidebar.fundraisers') },
+      { id: "impact", icon: "📊", label: t('sidebar.myImpact') },
+      { id: "requests", icon: "📋", label: t('sidebar.myRequests'), badge: requestCount },
+      { id: "feedbacks", icon: "⭐", label: t('sidebar.feedbacks') },
+      { id: "profile", icon: "🏢", label: t('sidebar.donorProfile') },
     ],
     ngo: [
-      { id: "dashboard", icon: "🏠", label: "Dashboard" },
-      { id: "browse", icon: "🔍", label: "Browse Food" },
-      { id: "myRequests", icon: "📋", label: "My Requests", badge: requestCount },
-      { id: "pickups", icon: "✅", label: "Pickups" },
-      { id: "fundRequests", icon: "💸", label: "Fund Requests" },
-      { id: "feedbacks", icon: "⭐", label: "Feedback & Ratings" },
-      { id: "profile", icon: "🏢", label: "NGO Profile" },
+      { id: "dashboard", icon: "🏠", label: t('sidebar.dashboard') },
+      { id: "browse", icon: "🔍", label: t('sidebar.browseFood') },
+      { id: "myRequests", icon: "📋", label: t('sidebar.myRequests'), badge: requestCount },
+      { id: "pickups", icon: "✅", label: t('sidebar.pickups') },
+      { id: "fundRequests", icon: "💸", label: t('sidebar.fundRequests') },
+      { id: "feedbacks", icon: "⭐", label: t('sidebar.feedbacks') },
+      { id: "profile", icon: "🏢", label: t('sidebar.ngoProfile') },
+    ],
+    volunteer: [
+      { id: "volunteerHome", icon: "🏠", label: t('sidebar.dashboard') },
+      { id: "availablePickups", icon: "👀", label: t('volunteer.availablePickups') },
+      { id: "myDeliveries", icon: "🚚", label: t('volunteer.myDeliveries') },
+      { id: "leaderboard", icon: "🏆", label: "Volunteer Leaderboard" },
+      { id: "feedbacks", icon: "⭐", label: t('sidebar.feedbacks') },
+      { id: "profile", icon: "🏢", label: t('sidebar.volunteerProfile') },
     ],
     admin: [
-      { id: "adminHome", icon: "🏠", label: "Overview" },
-      { id: "users", icon: "👥", label: "Users" },
-      { id: "donations", icon: "📦", label: "All Donations" },
-      { id: "requests", icon: "📋", label: "Food Approval" },
-      { id: "fundApprovals", icon: "⚖️", label: "Fund Approvals" },
-      { id: "feedbacks", icon: "⭐", label: "Feedbacks" },
-      { id: "notifications", icon: "🔔", label: "Notifications" },
-      { id: "analytics", icon: "📊", label: "Analytics" },
-      { id: "settings", icon: "⚙️", label: "Settings" },
+      { id: "adminHome", icon: "🏠", label: t('sidebar.overview') },
+      { id: "users", icon: "👥", label: t('sidebar.users') },
+      { id: "donations", icon: "📦", label: t('sidebar.allDonations') },
+      { id: "requests", icon: "📋", label: t('sidebar.foodApproval') },
+      { id: "fundApprovals", icon: "⚖️", label: t('sidebar.fundApprovals') },
+      { id: "feedbacks", icon: "⭐", label: t('sidebar.feedbacks') },
+      { id: "notifications", icon: "🔔", label: t('sidebar.notifications') },
+      { id: "analytics", icon: "📊", label: t('sidebar.analytics') },
+      { id: "settings", icon: "⚙️", label: t('sidebar.settings') },
     ],
   };
 
   const items = navItems[role] || navItems.donor;
+  const roleLabel = t(`common.${role}`, { defaultValue: role });
 
   const roleColors = { donor: COLORS.amber, ngo: COLORS.mint, admin: "#7b68ee" };
   
-  const activeColor = role === "ngo" ? COLORS.mint : roleColors[role];
+  const activeColor = role === "ngo" ? COLORS.mint : roleColors[role] || COLORS.amber;
   const activeBg = role === "ngo" ? "rgba(126, 200, 160, 0.18)" : "rgba(232,146,58,0.18)";
   const activeBorder = role === "ngo" ? "rgba(126, 200, 160, 0.3)" : "rgba(232,146,58,0.3)";
 
@@ -59,7 +70,16 @@ export default function Sidebar({ role, activePage, onNav, onLogout, user, reque
         flexShrink: 0,
       }}
     >
-      <div style={{ padding: "0 14px", marginTop: "40px", flex: 1 }}>
+      <div style={{ padding: "0 18px 22px", borderBottom: isLight ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(255,255,255,0.08)" }}>
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.04em", color: isLight ? "#17231b" : "#fff" }}>
+          Meal<span style={{ color: COLORS.amber }}>Bridge</span>
+        </div>
+        <div style={{ marginTop: 5, fontSize: 11, color: isLight ? "rgba(31,41,55,0.55)" : "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: "0.12em" }}>
+          {roleLabel} {t("common.workspace")}
+        </div>
+      </div>
+
+      <div style={{ padding: "22px 14px 0", flex: 1 }}>
         {items.map((item) => {
           const active = activePage === item.id;
           return (
@@ -113,13 +133,13 @@ export default function Sidebar({ role, activePage, onNav, onLogout, user, reque
               width: 36,
               height: 36,
               borderRadius: 10,
-              background: role === "ngo" ? "linear-gradient(135deg, #7ec8a0, #4a8c6a)" : `linear-gradient(135deg, ${COLORS.amber}, ${COLORS.amberLight})`,
+              background: role === "ngo" || role === "volunteer" ? "linear-gradient(135deg, #7ec8a0, #4a8c6a)" : `linear-gradient(135deg, ${COLORS.amber}, ${COLORS.amberLight})`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: 14,
               fontWeight: 700,
-              color: role === "ngo" ? "#1a3a2a" : "white",
+              color: role === "ngo" || role === "volunteer" ? "#1a3a2a" : "white",
               overflow: "hidden"
             }}
           >
@@ -136,14 +156,14 @@ export default function Sidebar({ role, activePage, onNav, onLogout, user, reque
           </div>
         </div>
 
-        <div
+<div
           onClick={onLogout}
           style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, cursor: "pointer", color: isLight ? "#b91c1c" : "rgba(255,100,100,0.7)" }}
           onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,100,100,0.08)")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
         >
           <span style={{ fontSize: 16 }}>🚪</span>
-          <span style={{ fontSize: 14 }}>Logout</span>
+          <span style={{ fontSize: 14 }}>{t('sidebar.logout')}</span>
         </div>
       </div>
     </div>

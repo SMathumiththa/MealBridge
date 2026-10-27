@@ -154,6 +154,7 @@ const updateStatus = async (req, res) => {
     // Record donation-level history for the request workflow
     if (status === 'picked_up') {
       await Food.findByIdAndUpdate(request.foodId._id, {
+        status: 'picked_up',
         statusHistory: [
           ...request.foodId.statusHistory,
           {
@@ -178,6 +179,7 @@ const updateStatus = async (req, res) => {
       const remainingQty = request.foodId.quantity;
       const update = {};
       const historyUpdate = {
+        status: remainingQty <= 0 ? 'delivered' : 'pending',
         statusHistory: [
           ...request.foodId.statusHistory,
           {
@@ -189,14 +191,11 @@ const updateStatus = async (req, res) => {
         ]
       };
 
-      if (remainingQty <= 0) {
-        update.status = 'delivered';
-      }
       await Food.findByIdAndUpdate(request.foodId._id, { ...update, ...historyUpdate });
 
       // === GAMIFICATION LOGIC ===
-      // Award points to the Donor based on quantity completed
       try {
+        // Award points to the Donor based on quantity completed
         const pointsAwarded = request.qty * 10; // 10 points per unit of food
         const donorUser = await User.findById(request.foodId.donor);
         if (donorUser) {
@@ -211,6 +210,23 @@ const updateStatus = async (req, res) => {
 
           await donorUser.save();
         }
+
+        // Award points to the Volunteer (if any)
+        if (request.volunteerId) {
+          const volunteerUser = await User.findById(request.volunteerId);
+          if (volunteerUser) {
+            volunteerUser.points += 50; // Flat 50 points per successful delivery
+            volunteerUser.totalDonations += 1; // Assuming totalDonations tracks completed tasks
+            
+            // Badge Logic
+            if (volunteerUser.points >= 1000) volunteerUser.badge = "Platinum";
+            else if (volunteerUser.points >= 500) volunteerUser.badge = "Gold";
+            else if (volunteerUser.points >= 200) volunteerUser.badge = "Silver";
+            else if (volunteerUser.points >= 50) volunteerUser.badge = "Bronze";
+
+            await volunteerUser.save();
+          }
+        }
       } catch (err) {
         console.error("Gamification Error:", err);
       }
@@ -222,18 +238,19 @@ const updateStatus = async (req, res) => {
       }
     }
 
-    const recipientId = req.user.role === 'ngo' ? request.foodId.donor : request.ngoId;
-    
-    const notif = await Notification.create({
-      recipientId: recipientId,
+    const recipientIds = req.user.role === 'volunteer'
+      ? [request.foodId.donor, request.ngoId]
+      : [req.user.role === 'ngo' ? request.foodId.donor : request.ngoId];
+    const notifs = await Notification.insertMany(recipientIds.map(recipientId => ({
+      recipientId,
       message: `Status of food request for '${request.foodId.foodName}' updated to ${status}`,
       type: 'status_change',
       relatedId: request._id
-    });
+    })));
 
     const io = req.app.get("io");
     if (io) {
-      io.to(recipientId.toString()).emit("new_notification", notif);
+      notifs.forEach(notif => io.to(notif.recipientId.toString()).emit("new_notification", notif));
     }
 
     res.json({
@@ -255,7 +272,8 @@ const getRequests = async (req, res) => {
         select: "foodName donor status quantity unit expiryTime location image description foodType",
         populate: { path: "donor", select: "name email phone organization" }
       })
-      .populate("ngoId", "name email")
+      .populate("ngoId", "name email phone officeLocation")
+      .populate("volunteerId", "name email phone averageRating")
       .sort({ createdAt: -1 });
 
     let finalRequests = requests;
@@ -266,7 +284,11 @@ const getRequests = async (req, res) => {
     } else if (req.user.role === "volunteer") {
       // Volunteers see accepted requests (available to pick up) and their assigned ones
       finalRequests = requests.filter(
-        (r) => (r.status === "accepted" && !r.volunteerId) || (r.volunteerId && r.volunteerId.toString() === req.user._id.toString())
+        (r) => {
+          const volunteerId = r.volunteerId?._id || r.volunteerId;
+          return (r.status === "accepted" && !volunteerId) ||
+            (volunteerId && volunteerId.toString() === req.user._id.toString());
+        }
       );
     }
 

@@ -8,6 +8,7 @@ const {
   cancelHandover,
   addFeedback,
   getNgoMoneyDonations,
+  getMyMoneyDonations,
   getAllMoneyDonations,
   deleteMoneyDonation
 } = require("../controllers/moneyDonationController");
@@ -22,6 +23,7 @@ router.put("/:id/confirm-pending", protect, authorizeRoles("ngo", "admin"), conf
 router.put("/:id/cancel-pending", protect, authorizeRoles("donor", "ngo", "admin"), cancelPendingDonation);
 router.put("/:id/confirm-handover", protect, authorizeRoles("ngo", "admin"), confirmHandover);
 router.put("/:id/cancel-handover", protect, authorizeRoles("donor", "ngo", "admin"), cancelHandover);
+router.get("/mine", protect, authorizeRoles("donor", "admin"), getMyMoneyDonations);
 router.get("/ngo", protect, authorizeRoles("ngo", "admin"), getNgoMoneyDonations);
 
 module.exports = router;

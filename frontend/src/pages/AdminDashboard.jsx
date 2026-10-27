@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { COLORS } from "../theme";
 import Sidebar from "../components/Sidebar";
@@ -11,8 +12,13 @@ import api from "../api/axios";
 import toast from "react-hot-toast";
 import { createPortal } from "react-dom";
 import { io } from "socket.io-client";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
+  PieChart, Pie, Cell
+} from "recharts";
 
 export default function AdminDashboard({ theme = "dark" }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const isLight = theme === "light";
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem("user") || "null"));
@@ -44,6 +50,33 @@ export default function AdminDashboard({ theme = "dark" }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // Analytics Data Prep
+  const userPieData = stats ? [
+    { name: 'Donors', value: stats.donors || 0 },
+    { name: 'NGOs', value: stats.ngos || 0 },
+    { name: 'Admins', value: stats.admins || 0 }
+  ] : [];
+  
+  const PIE_COLORS = [COLORS.amber, COLORS.mint, '#7b68ee'];
+
+  const getDonationsByMonth = () => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const counts = {};
+    donations.forEach(d => {
+      const date = new Date(d.createdAt);
+      const m = months[date.getMonth()];
+      counts[m] = (counts[m] || 0) + 1;
+    });
+    
+    // Convert to array
+    const data = Object.keys(counts).map(k => ({ month: k, donations: counts[k] }));
+    // Sort by month index to keep chronological order
+    data.sort((a, b) => months.indexOf(a.month) - months.indexOf(b.month));
+    return data;
+  };
+  
+  const trendData = getDonationsByMonth();
 
   // 📊 Fetch Admin Stats
   const fetchStats = async () => {
@@ -468,26 +501,26 @@ export default function AdminDashboard({ theme = "dark" }) {
         {page === "adminHome" && (
           <div>
             <div style={{ marginBottom: 28 }}>
-              <h2 style={{ color: "white", fontSize: 28, margin: "0 0 6px" }}>Admin Overview ⚙️</h2>
+              <h2 style={{ color: "white", fontSize: 28, margin: "0 0 6px" }}>{t("common.adminOverview")} ⚙️</h2>
               <p style={{ color: "rgba(255,255,255,0.7)", margin: 0 }}>MealBridge Platform Dashboard · {new Date().toLocaleDateString()}</p>
             </div>
 
             {loading ? (
               <div style={{ textAlign: "center", padding: "40px", color: "rgba(255,255,255,0.7)" }}>
-                <p>Loading stats...</p>
+                <p>{t("common.loadingStats")}</p>
               </div>
             ) : stats ? (
               <>
                 <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
-                  <StatCard icon="🍱" label="Total Donations" value={stats.totalDonations || 0} color={COLORS.amberLight} sub="Meals" />
-                  <StatCard icon="💰" label="Total Funds" value={`LKR ${stats.totalFundsDonated || 0}`} color={COLORS.amber} sub="Donated" />
-                  <StatCard icon="👥" label="Total Users" value={stats.totalUsers || 0} color={COLORS.mint} sub="Registered" />
-                  <StatCard icon="📍" label="Total Requests" value={stats.totalRequests || 0} color="#7b68ee" sub="Processed" />
+                  <StatCard icon="🍱" label={t("common.totalDonations")} value={stats.totalDonations || 0} color={COLORS.amberLight} sub={t("common.meals")} />
+                  <StatCard icon="💰" label={t("common.totalFunds")} value={`LKR ${stats.totalFundsDonated || 0}`} color={COLORS.amber} sub={t("common.donated")} />
+                  <StatCard icon="👥" label={t("common.totalUsers")} value={stats.totalUsers || 0} color={COLORS.mint} sub={t("common.registered")} />
+                  <StatCard icon="📍" label={t("common.totalRequests")} value={stats.totalRequests || 0} color="#7b68ee" sub={t("common.processed")} />
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                   <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, padding: "20px" }}>
-                    <div style={{ fontWeight: 700, color: "white", marginBottom: 16 }}>User Breakdown</div>
+                    <div style={{ fontWeight: 700, color: "white", marginBottom: 16 }}>{t("common.userBreakdown")}</div>
                     {[
                       { label: "Donors", icon: "👤", count: stats.donors || 0, color: COLORS.amber },
                       { label: "NGOs", icon: "🏢", count: stats.ngos || 0, color: COLORS.mint },
@@ -501,7 +534,7 @@ export default function AdminDashboard({ theme = "dark" }) {
                   </div>
 
                   <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, padding: "20px" }}>
-                    <div style={{ fontWeight: 700, color: "white", marginBottom: 16 }}>Platform Metrics</div>
+                    <div style={{ fontWeight: 700, color: "white", marginBottom: 16 }}>{t("common.platformMetrics")}</div>
                     {[
                       { label: "Total Feedbacks", val: stats.totalFeedbacks || 0, icon: "⭐" },
                       { label: "Avg Completion Rate", val: "94%", icon: "✅" },
@@ -511,6 +544,58 @@ export default function AdminDashboard({ theme = "dark" }) {
                         <span style={{ color: COLORS.amber, fontWeight: 700 }}>{m.val}</span>
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
+                  <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, padding: "20px" }}>
+                    <div style={{ fontWeight: 700, color: "white", marginBottom: 16 }}>{t("common.foodDonationTrend")}</div>
+                    <div style={{ width: '100%', height: 300 }}>
+                      <ResponsiveContainer>
+                        <LineChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis dataKey="month" stroke="rgba(255,255,255,0.5)" />
+                          <YAxis stroke="rgba(255,255,255,0.5)" />
+                          <RechartsTooltip 
+                            contentStyle={{ backgroundColor: "#1e293b", borderColor: "rgba(255,255,255,0.1)", color: "white" }} 
+                            itemStyle={{ color: COLORS.amber }}
+                          />
+                          <Line type="monotone" dataKey="donations" stroke={COLORS.amber} strokeWidth={3} dot={{ r: 5, fill: COLORS.amber }} activeDot={{ r: 8 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, padding: "20px", display: "flex", flexDirection: "column" }}>
+                    <div style={{ fontWeight: 700, color: "white", marginBottom: 16 }}>{t("common.userComposition")}</div>
+                    <div style={{ width: '100%', flex: 1, minHeight: 250, position: 'relative' }}>
+                      <ResponsiveContainer>
+                        <PieChart>
+                          <Pie
+                            data={userPieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                            stroke="none"
+                          >
+                            {userPieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip 
+                            contentStyle={{ backgroundColor: "#1e293b", borderColor: "rgba(255,255,255,0.1)", color: "white" }} 
+                            itemStyle={{ color: "white" }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center" }}>
+                        <div style={{ fontSize: 24, fontWeight: 800, color: "white", lineHeight: 1 }}>{stats.totalUsers || 0}</div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Total</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </>
@@ -523,7 +608,7 @@ export default function AdminDashboard({ theme = "dark" }) {
         )}
         {page === "users" && (
           <div>
-            <h2 style={{ color: "white", fontSize: 26, margin: "0 0 20px" }}>👥 User Management</h2>
+            <h2 style={{ color: "white", fontSize: 26, margin: "0 0 20px" }}>👥 {t("common.userManagement")}</h2>
             
             <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
               <input 
@@ -1580,6 +1665,5 @@ export default function AdminDashboard({ theme = "dark" }) {
     </div>
   );
 }
-
 
 

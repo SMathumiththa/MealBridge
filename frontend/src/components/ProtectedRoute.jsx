@@ -16,8 +16,10 @@ export default function ProtectedRoute({ children, role, allowedRoles }) {
 
   // Check single role or multiple allowed roles
   const rolesToCheck = allowedRoles || (role ? [role] : []);
+  const currentRole = typeof user.role === "string" ? user.role.trim().toLowerCase() : "";
+  const normalizedRoles = rolesToCheck.map((allowedRole) => allowedRole.trim().toLowerCase());
   
-  if (rolesToCheck.length > 0 && !rolesToCheck.includes(user.role)) {
+  if (normalizedRoles.length > 0 && !normalizedRoles.includes(currentRole)) {
     return <Navigate to="/login" replace />;
   }
 

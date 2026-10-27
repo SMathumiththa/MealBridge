@@ -117,6 +117,7 @@ router.get("/feedbacks", protect, adminOnly, async (req, res) => {
     const feedbacks = await Feedback.find()
       .populate("donorId", "name email phone organization role")
       .populate("ngoId", "name email phone organization role")
+      .populate("volunteerId", "name email phone organization role")
       .sort({ createdAt: -1 });
 
     res.json({

@@ -101,6 +101,15 @@ async function finalizeDonation(donation, moneyRequest, ngoUser, io = null) {
       amount: donation.amount,
       campaignName: moneyRequest.purpose
     });
+    donation.receiptUrl = `http://localhost:5000${receiptPath}`;
+    await donation.save();
+    const receiptNotification = await Notification.create({
+      recipientId: donation.donorId,
+      message: `Your official donation receipt is ready and has been sent to your email.`,
+      type: "receipt_ready",
+      relatedId: donation._id
+    });
+    if (io) io.to(donation.donorId.toString()).emit("new_notification", receiptNotification);
     if (donor?.email) {
       sendReceiptEmail(donor.email, donor.name || 'Donor', receiptPath);
     }
@@ -162,7 +171,7 @@ exports.createMoneyDonation = async (req, res) => {
       method = "recurring";
     }
 
-    let status = "success"; // Force success immediately so the goal updates as requested
+    const status = method === "qr_payment" ? "pending" : "success";
 
     if ((method === "bank_transfer" || method === "qr_payment") && !receiptImage && status === "pending") {
       return res.status(400).json({ success: false, message: "Please upload your payment receipt" });
@@ -207,6 +216,15 @@ exports.createMoneyDonation = async (req, res) => {
         if (req.user.email) {
           sendReceiptEmail(req.user.email, req.user.name || 'Donor', receiptPath);
         }
+        donation.receiptUrl = `http://localhost:5000${receiptPath}`;
+        await donation.save();
+        const receiptNotification = await Notification.create({
+          recipientId: req.user._id,
+          message: `Your official donation receipt is ready and has been sent to your email.`,
+          type: "receipt_ready",
+          relatedId: donation._id
+        });
+        if (req.app.get("io")) req.app.get("io").to(req.user._id.toString()).emit("new_notification", receiptNotification);
       } catch (e) {
         console.error('Error generating/sending receipt for money donation:', e);
       }
@@ -374,6 +392,19 @@ exports.getNgoMoneyDonations = async (req, res) => {
         select: "purpose ngoId",
         populate: { path: "ngoId", select: "name email role" }
       })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, data: donations });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.getMyMoneyDonations = async (req, res) => {
+  try {
+    const donations = await MoneyDonation.find({ donorId: req.user._id })
+      .populate("moneyRequestId", "purpose ngoId")
       .sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, data: donations });

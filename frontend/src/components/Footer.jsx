@@ -1,17 +1,19 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export default function Footer({ theme }) {
   const isLight = theme === "light";
+  const { t } = useTranslation();
 
   const COLORS = {
-    forest: "#1a3a2a",
-    forestMid: "#234d38",
-    forestLight: "#2d6347",
-    sage: "#4a8c6a",
-    mint: "#7ec8a0",
-    amber: "#e8923a",
-    amberLight: "#f4b96e",
-    charcoal: "#1c2b22",
+    forest: "#124b55",
+    forestMid: "#0d6170",
+    forestLight: "#167d78",
+    sage: "#35a766",
+    mint: "#79cf8a",
+    amber: "#19a85a",
+    amberLight: "#61c978",
+    charcoal: "#073b65",
   };
 
   const linkStyle = {
@@ -61,7 +63,7 @@ export default function Footer({ theme }) {
     <footer style={{
       width: "100%",
       marginTop: "5rem",
-      background: isLight ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.2)",
+      background: isLight ? "rgba(7,59,101,0.08)" : "rgba(0,0,0,0.28)",
       backdropFilter: "blur(10px)",
       borderTop: isLight ? "1px solid rgba(15,23,42,0.05)" : "1px solid rgba(255,255,255,0.05)",
       padding: "4rem 2rem 2rem 2rem",
@@ -96,7 +98,7 @@ export default function Footer({ theme }) {
             fontSize: "0.95rem",
             marginBottom: "1.5rem"
           }}>
-            Bridge the gap between excess food and empty plates. Join our community to share surplus food and fund impactful campaigns.
+            {t("common.footerDescription")}
           </p>
           <div style={{ display: "flex", gap: "1rem" }}>
             <a href="#" style={socialIconStyle} onMouseEnter={handleSocialEnter} onMouseLeave={handleSocialLeave}>
@@ -118,13 +120,13 @@ export default function Footer({ theme }) {
             fontWeight: 700,
             marginBottom: "1.5rem",
             color: isLight ? COLORS.charcoal : "#ffffff"
-          }}>Quick Links</h4>
-          <Link to="/" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={linkStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>Home</Link>
-          <Link to="/donate-food" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={linkStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>Donate Food</Link>
-          <Link to="/fund-campaigns" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={linkStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>Fund Campaigns</Link>
-          <Link to="/impact" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={linkStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>Track Impact</Link>
-          <Link to="/login" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={linkStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>Login</Link>
-          <Link to="/register" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={linkStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>Register</Link>
+          }}>{t("common.quickLinks")}</h4>
+          <Link to="/" style={linkStyle}>{t("common.home")}</Link>
+          <Link to="/donate-food" style={linkStyle}>{t("common.donateFood")}</Link>
+          <Link to="/fund-campaigns" style={linkStyle}>{t("common.fundCampaigns")}</Link>
+          <Link to="/impact" style={linkStyle}>{t("common.trackImpact")}</Link>
+          <Link to="/login" style={linkStyle}>{t("common.login")}</Link>
+          <Link to="/register" style={linkStyle}>{t("common.register")}</Link>
         </div>
 
         {/* Column 3: Legal */}
@@ -134,10 +136,10 @@ export default function Footer({ theme }) {
             fontWeight: 700,
             marginBottom: "1.5rem",
             color: isLight ? COLORS.charcoal : "#ffffff"
-          }}>Legal</h4>
-          <Link to="/privacy" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={linkStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>Privacy Policy</Link>
-          <Link to="/terms" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={linkStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>Terms of Service</Link>
-          <Link to="/about" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={linkStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>About Us</Link>
+          }}>{t("common.legal")}</h4>
+          <Link to="/privacy" style={linkStyle}>{t("common.privacy")}</Link>
+          <Link to="/terms" style={linkStyle}>{t("common.terms")}</Link>
+          <Link to="/about" style={linkStyle}>{t("common.aboutUs")}</Link>
         </div>
 
         {/* Column 4: Contact */}
@@ -147,7 +149,7 @@ export default function Footer({ theme }) {
             fontWeight: 700,
             marginBottom: "1.5rem",
             color: isLight ? COLORS.charcoal : "#ffffff"
-          }}>Contact Us</h4>
+          }}>{t("common.contactUs")}</h4>
           <p style={{
             color: isLight ? "rgba(15,23,42,0.7)" : "rgba(255,255,255,0.7)",
             fontSize: "0.95rem",

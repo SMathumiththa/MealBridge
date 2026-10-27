@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { COLORS } from "../theme";
 
 // ✅ FEEDBACK FORM COMPONENT
-const FeedbackForm = ({ donorId, requestId, donationId, donorName, onSubmitSuccess }) => {
+const FeedbackForm = ({ donorId, volunteerId, requestId, donationId, donorName, targetName, onSubmitSuccess }) => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -23,7 +23,7 @@ const FeedbackForm = ({ donorId, requestId, donationId, donorName, onSubmitSucce
       const response = await createFeedback({
         rating,
         comment: comment.trim(),
-        donorId,
+        ...(donorId ? { donorId } : { volunteerId }),
         donationId,
         requestId,
       });
@@ -53,7 +53,7 @@ const FeedbackForm = ({ donorId, requestId, donationId, donorName, onSubmitSucce
           ⭐ Rate Your Experience
         </h3>
         <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, margin: 0 }}>
-          Help other NGOs by rating {donorName}'s donation
+          Help other NGOs by rating {targetName || donorName}'s delivery
         </p>
       </div>
 
@@ -76,7 +76,7 @@ const FeedbackForm = ({ donorId, requestId, donationId, donorName, onSubmitSucce
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Describe your experience with this donor... (quality, packaging, coordination, etc.)"
+            placeholder={`Describe your experience with this ${volunteerId ? "volunteer" : "donor"}... (quality, packaging, coordination, etc.)`}
             maxLength={500}
             style={{
               width: "100%",

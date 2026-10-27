@@ -1,5 +1,34 @@
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
+import BrushStepCards from "../components/BrushStepCards";
+import ReachingHandsDecoration from "../components/ReachingHandsDecoration";
+
+const campaignSteps = [
+  {
+    number: "01",
+    title: "NGOs Post Requests",
+    text: "Verified NGOs submit monetary requests detailing their goals, emergency food needs, and target community.",
+    image: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=600&q=80",
+    link: "/register",
+    linkText: "LEARN MORE",
+  },
+  {
+    number: "02",
+    title: "Secure Donations",
+    text: "Users browse active fundraisers and securely donate funds directly to the cause with live milestone progress.",
+    image: "https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=600&q=80",
+    link: "/register",
+    linkText: "SUPPORT CAUSE",
+  },
+  {
+    number: "03",
+    title: "Achieve Goals",
+    text: "Progress updates in real-time. Once the goal is met, NGOs utilize the funds to maximize community impact.",
+    image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80",
+    link: "/impact",
+    linkText: "SEE IMPACT",
+  },
+];
 
 export default function FundCampaignInfo({ theme }) {
   const navigate = useNavigate();
@@ -22,7 +51,7 @@ export default function FundCampaignInfo({ theme }) {
       zIndex: 10,
     }}>
       <div style={{
-        maxWidth: "900px",
+        maxWidth: "1080px",
         margin: "0 auto",
         padding: "2rem",
         animation: "slideUp 0.8s ease-out forwards",
@@ -53,42 +82,50 @@ export default function FundCampaignInfo({ theme }) {
           fontSize: "1.2rem",
           color: isLight ? "rgba(15,23,42,0.7)" : "rgba(255,255,255,0.8)",
           lineHeight: 1.8,
-          marginBottom: "2rem"
+          marginBottom: "2.5rem"
         }}>
           Sometimes, logistical support, groceries in bulk, or cooking facilities require financial backing. Our Fund Campaigns feature empowers NGOs to raise necessary funds directly from generous donors.
         </p>
 
-        <h2 style={{ fontSize: "2rem", color: isLight ? COLORS.charcoal : "#ffffff", marginBottom: "1rem" }}>How it Works</h2>
-        <ul style={{
-          fontSize: "1.1rem",
-          color: isLight ? "rgba(15,23,42,0.7)" : "rgba(255,255,255,0.8)",
-          lineHeight: 1.8,
-          marginBottom: "3rem",
-          paddingLeft: "1.5rem"
-        }}>
-          <li><strong>NGOs Post Requests:</strong> Verified NGOs submit monetary requests detailing their goals and requirements.</li>
-          <li><strong>Secure Donations:</strong> Users browse active fundraisers and securely donate funds directly to the cause.</li>
-          <li><strong>Achieve Goals:</strong> Progress bars update in real-time. Once the goal is met, NGOs utilize the funds to maximize their impact.</li>
-        </ul>
+        <div style={{ marginBottom: "2.5rem" }}>
+          <button 
+            onClick={() => navigate('/register')}
+            style={{
+              padding: "1rem 2.5rem",
+              fontSize: "1.1rem",
+              fontWeight: 600,
+              borderRadius: "50px",
+              background: COLORS.amber,
+              color: "#fff",
+              border: "none",
+              cursor: "pointer",
+              boxShadow: "0 4px 15px rgba(232, 146, 58, 0.3)",
+              transition: "transform 0.2s, box-shadow 0.2s",
+            }}
+          >
+            Donate Funds
+          </button>
+        </div>
 
-        <button 
-          onClick={() => navigate('/register')}
-          style={{
-            padding: "1rem 2.5rem",
-            fontSize: "1.1rem",
-            fontWeight: 600,
-            borderRadius: "50px",
-            background: COLORS.amber,
-            color: "#fff",
-            border: "none",
-            cursor: "pointer",
-            boxShadow: "0 4px 15px rgba(232, 146, 58, 0.3)",
-            transition: "transform 0.2s, box-shadow 0.2s",
-          }}
-        >
-          Donate Funds
-        </button>
+        {/* Characteristic Card Section */}
+        <section className="story-section" style={{ margin: "50px 0 30px", width: "100%", position: "relative" }}>
+          <div className="section-heading">
+            <p className="public-kicker">Simple, human, local</p>
+            <h2 style={{ fontSize: "2.4rem", color: isLight ? COLORS.charcoal : "#ffffff" }}>How it Works</h2>
+          </div>
+          <p className="section-intro" style={{ color: isLight ? "rgba(15,23,42,0.7)" : "rgba(255,255,255,0.7)" }}>
+            Clear and auditable fundraising that turns financial contributions into warm, nourishing meals.
+          </p>
+          <div className="story-cards-wrap" style={{ position: "relative" }}>
+            <BrushStepCards items={campaignSteps} defaultActive="02" />
+            <ReachingHandsDecoration
+              side="right"
+              className="about-side-hands about-side-hands-right"
+            />
+          </div>
+        </section>
       </div>
+
       <div style={{ flexGrow: 1 }} />
       <Footer theme={theme} />
     </div>

@@ -4,3 +4,7 @@ backend/.env
 *.log
 /backend/uploads/
 .env 
+
+.refact/
+dist/
+food-donation-system/
