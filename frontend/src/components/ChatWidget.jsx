@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
-import axios from "axios";
+import API from "../api/axios";
 
 const SOCKET_URL = `http://${window.location.hostname}:5000`;
 
@@ -18,9 +18,9 @@ const ChatWidget = ({
   const messagesEndRef = useRef(null);
 
   const roomId = moneyRequestId ? `fund-${moneyRequestId}` : requestId;
-  const messagesUrl = moneyRequestId
-    ? `${SOCKET_URL}/api/messages/fund/${moneyRequestId}`
-    : `${SOCKET_URL}/api/messages/${requestId}`;
+  const messagesPath = moneyRequestId
+    ? `/messages/fund/${moneyRequestId}`
+    : `/messages/${requestId}`;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -31,10 +31,7 @@ const ChatWidget = ({
 
     const fetchMessages = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get(messagesUrl, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await API.get(messagesPath);
         if (res.data.success) {
           setMessages(res.data.data);
         }
@@ -59,7 +56,7 @@ const ChatWidget = ({
     return () => {
       socketRef.current?.disconnect();
     };
-  }, [roomId, messagesUrl, requestId, moneyRequestId]);
+  }, [roomId, messagesPath, requestId, moneyRequestId]);
 
   useEffect(() => {
     scrollToBottom();

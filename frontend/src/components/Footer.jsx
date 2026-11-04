@@ -25,14 +25,6 @@ export default function Footer({ theme }) {
     transition: "color 0.2s"
   };
 
-  const handleMouseEnter = (e) => {
-    e.target.style.color = isLight ? COLORS.amber : COLORS.amberLight;
-  };
-
-  const handleMouseLeave = (e) => {
-    e.target.style.color = isLight ? "rgba(15,23,42,0.7)" : "rgba(255,255,255,0.7)";
-  };
-
   const socialIconStyle = {
     width: "40px",
     height: "40px",

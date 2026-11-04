@@ -7,13 +7,15 @@ import StatCard from "../components/StatCard";
 import RatingStars from "../components/RatingStars";
 import LocationSelector from "../components/LocationSelector";
 import { createDonation, getMyDonations, getMyStats, deleteDonation } from "../api/donation";
-import { getNotifications, markNotificationsAsRead } from "../api/notification";
+import { getNotifications, markNotificationAsRead } from "../api/notification";
 import { getRequests, updateRequest } from "../api/request";
 import { getDonorRatingStats, getMySubmittedFeedbacks, getMyReceivedFeedbacks, getMyPendingFeedbacks } from "../api/feedback";
 import { getMoneyRequests } from "../api/moneyRequest";
 import { addMoneyDonationFeedback, getMyMoneyDonations } from "../api/moneyDonation";
+import { confirmCheckoutSession, createPaymentIntent, confirmPaymentIntent } from "../api/payment";
 import DonationCheckoutModal from "../components/DonationCheckoutModal";
 import { COLORS } from "../theme";
+import DashboardIcon from "../components/DashboardIcon";
 import toast from "react-hot-toast";
 import ChatWidget from "../components/ChatWidget";
 import Leaderboard from "../components/Leaderboard";
@@ -39,7 +41,7 @@ function DonorHome({ setActive, user, stats, recentDonations, ratingStats, theme
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center", background: pageBg, padding: isLight ? "28px 20px 0" : 0, borderRadius: isLight ? 24 : 0 }}>
-      <h2 style={{ color: textColor, fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{greeting}, {user?.name || "Donor"}! 👋</h2>
+      <h2 style={{ color: textColor, fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{greeting}, {user?.name || "Donor"}</h2>
       <p style={{ color: mutedColor, fontSize: 16, marginBottom: 32 }}>{t("common.donorWelcome")}</p>
 
       <div style={{ display: "flex", gap: 16, marginBottom: 36, flexWrap: "wrap", justifyContent: "center", textAlign: "left" }}>
@@ -58,7 +60,7 @@ function DonorHome({ setActive, user, stats, recentDonations, ratingStats, theme
           marginBottom: 36,
           textAlign: "left",
         }}>
-          <h3 style={{ color: panelText, fontSize: 18, fontWeight: 700, marginBottom: 12 }}>⭐ Your Rating</h3>
+          <h3 style={{ color: panelText, fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Your Rating</h3>
           <div style={{ display: "flex", alignItems: "center", gap: 20, justifyContent: "space-between" }}>
             <div>
               <div style={{ fontSize: 36, fontWeight: 800, color: COLORS.amber }}>
@@ -71,7 +73,7 @@ function DonorHome({ setActive, user, stats, recentDonations, ratingStats, theme
             <RatingStars rating={Math.round(ratingStats.donor.averageRating || 0)} readOnly size={32} />
           </div>
           <p style={{ color: isLight ? "rgba(15,23,42,0.65)" : "rgba(255,255,255,0.65)", fontSize: 13, margin: "12px 0 0" }}>
-            🎯 Maintain high-quality donations and good communication to keep your rating strong!
+            Maintain high-quality donations and good communication to keep your rating strong.
           </p>
         </div>
       )}
@@ -82,11 +84,11 @@ function DonorHome({ setActive, user, stats, recentDonations, ratingStats, theme
           <button onClick={() => setActive("donate")} style={{
             background: COLORS.amber, color: COLORS.forest, border: "none", borderRadius: 12,
             padding: "14px 28px", fontWeight: 700, fontSize: 16, cursor: "pointer", boxShadow: "0 4px 15px rgba(232,146,58,0.3)"
-          }}>➕ {t("common.postDonation")}</button>
+          }}><DashboardIcon name="plus" size={17} /> {t("common.postDonation")}</button>
           <button onClick={() => setActive("myDonations")} style={{
             background: "transparent", color: COLORS.amber, border: `2px solid ${COLORS.amber}`,
             borderRadius: 12, padding: "12px 28px", fontWeight: 600, fontSize: 16, cursor: "pointer",
-          }}>📦 {t("common.viewDonations")}</button>
+          }}><DashboardIcon name="food" size={17} /> {t("common.viewDonations")}</button>
         </div>
       </div>
 
@@ -214,7 +216,7 @@ function DonateForm({ setActive, reloadDonations, theme }) {
       reloadDonations();
       setTimeout(() => { setSuccess(false); setActive("myDonations"); }, 2000);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to create donation");
+      toast.error(err.response?.data?.message || err.message || "Failed to create donation");
     } finally {
       setLoading(false);
     }
@@ -239,7 +241,7 @@ function DonateForm({ setActive, reloadDonations, theme }) {
       ) : opts.textarea ? (
         <textarea value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} placeholder={opts.placeholder || ""} rows={3} style={{ ...inputStyle, resize: "vertical" }} />
       ) : (
-        <input type={type} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} placeholder={opts.placeholder || ""} style={inputStyle} />
+        <input type={type} min={opts.min} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} placeholder={opts.placeholder || ""} style={inputStyle} />
       )}
     </div>
   );
@@ -336,7 +338,7 @@ function DonateForm({ setActive, reloadDonations, theme }) {
         </div>
         
         {field("Pickup Time", "pickup", "datetime-local")}
-        {field("Expiry Time *", "expiry", "datetime-local")}
+        {field("Expiry Time *", "expiry", "datetime-local", { min: new Date().toISOString().slice(0, 16) })}
         <div>
           <label style={{ display: "block", color: mutedColor, fontSize: 12, fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Food Type *</label>
           <div style={{ display: "flex", gap: 10 }}>
@@ -419,11 +421,11 @@ function MyDonations({ donations, moneyDonations = [], onDelete, theme }) {
   return (
     <div>
       <div style={{ background: isLight ? "rgba(255,255,255,0.92)" : "transparent", borderRadius: 24, padding: 24, color: textColor }}>
-        <h2 style={{ color: textColor, fontSize: 26, fontWeight: 600, margin: "0 0 16px" }}>📦 My Donations</h2>
+        <h2 style={{ color: textColor, fontSize: 26, fontWeight: 600, margin: "0 0 16px" }}>My Donations</h2>
         <p style={{ color: mutedColor, fontSize: 14, marginBottom: 20 }}>{donations.length + moneyDonations.length} total donations</p>
       {moneyDonations.length > 0 && (
         <div style={{ marginBottom: 28 }}>
-          <h3 style={{ color: textColor, fontSize: 18, margin: "0 0 14px" }}>💰 Financial Donations</h3>
+          <h3 style={{ color: textColor, fontSize: 18, margin: "0 0 14px" }}>Financial Donations</h3>
           {moneyDonations.map(donation => {
             const statusColor = donation.paymentStatus === "success" ? "#2ecc71" : donation.paymentStatus === "cancelled" ? "#e74c3c" : COLORS.amber;
             return (
@@ -436,7 +438,7 @@ function MyDonations({ donations, moneyDonations = [], onDelete, theme }) {
                 </div>
                 <span style={{ color: statusColor, background: `${statusColor}20`, padding: "5px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{donation.paymentStatus === "success" ? "Confirmed" : donation.paymentStatus}</span>
                 {donation.receiptUrl && donation.paymentStatus === "success" && (
-                  <a href={donation.receiptUrl} target="_blank" rel="noreferrer" style={{ color: isLight ? "#2563eb" : COLORS.mint, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>📄 Download Receipt</a>
+                  <a href={donation.receiptUrl} target="_blank" rel="noreferrer" style={{ color: isLight ? "#2563eb" : COLORS.mint, fontSize: 12, fontWeight: 700, textDecoration: "none" }}>📄 View Receipt</a>
                 )}
               </div>
             );
@@ -481,13 +483,7 @@ function MyDonations({ donations, moneyDonations = [], onDelete, theme }) {
                       const { downloadDonationReceipt } = await import("../api/donation");
                       const res = await downloadDonationReceipt(d._id);
                       if (res.success && res.data.receiptUrl) {
-                        window.open(res.data.receiptUrl, "_blank");
-                        const link = document.createElement("a");
-                        link.href = res.data.receiptUrl;
-                        link.setAttribute("download", `Donation_Certificate_${d._id}.pdf`);
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
+                        window.open(res.data.receiptUrl, "_blank", "noopener,noreferrer");
                       }
                     } catch {
                       toast.error("Certificate not available yet.");
@@ -499,7 +495,7 @@ function MyDonations({ donations, moneyDonations = [], onDelete, theme }) {
                     fontWeight: 600
                   }}
                 >
-                  📄 Certificate
+                  📄 View Certificate
                 </button>
               )}
               <button 
@@ -537,7 +533,7 @@ function ImpactPage({ stats, theme }) {
   ];
   return (
     <div style={{ background: isLight ? "rgba(255,255,255,0.94)" : "transparent", borderRadius: 24, padding: 24, color: textColor }}>
-      <h2 style={{ color: textColor, fontSize: 26, fontWeight: 600, margin: "0 0 16px" }}>📊 My Impact</h2>
+      <h2 style={{ color: textColor, fontSize: 26, fontWeight: 600, margin: "0 0 16px" }}>My Impact</h2>
       <p style={{ color: mutedColor, fontSize: 14, marginBottom: 24 }}>Here's the difference you've made.</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
         {metrics.map(m => (
@@ -564,7 +560,7 @@ function RequestsPage({ requests, onRequestAction, theme, user }) {
 
   return (
     <div style={{ background: panelBg, borderRadius: 24, padding: 24, color: textColor }}>
-      <h2 style={{ color: textColor, fontSize: 26, fontWeight: 600, margin: "0 0 16px" }}>📋 My Requests</h2>
+      <h2 style={{ color: textColor, fontSize: 26, fontWeight: 600, margin: "0 0 16px" }}>My Requests</h2>
       <p style={{ color: mutedColor, fontSize: 14, marginBottom: 24 }}>NGOs have requested your food. Accept or reject them here.</p>
 
       {pending.length === 0 && history.length === 0 ? (
@@ -759,7 +755,7 @@ function ProfilePage({ user, setUser, theme }) {
   return (
     <div style={{ background: isLight ? "rgba(255,255,255,0.94)" : "transparent", borderRadius: 24, padding: 24, color: textColor }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 24, textAlign: "center" }}>
-        <h2 style={{ color: textColor, fontSize: 26, margin: 0 }}>🏢 Donor Profile</h2>
+        <h2 style={{ color: textColor, fontSize: 26, margin: 0 }}>Donor Profile</h2>
         {!edit && <button onClick={() => setEdit(true)} style={{ background: isLight ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.05)", color: textColor, border: "none", padding: "10px 20px", borderRadius: 10, cursor: "pointer", fontWeight: 600 }}>Edit Profile</button>}
       </div>
 
@@ -892,7 +888,7 @@ function FeedbacksPage({ theme, refreshTrigger, activePage }) {
 
   return (
     <div>
-      <h2 style={{ color: textColor, fontSize: 26, margin: "0 0 22px" }}>⭐ Feedback & Ratings</h2>
+      <h2 style={{ color: textColor, fontSize: 26, margin: "0 0 22px" }}>Feedback & Ratings</h2>
 
       <div style={{ display: "flex", gap: 14, marginBottom: 28, flexWrap: "wrap" }}>
         <StatCard icon="📝" label="Pending Feedback" value={pending.length} color={COLORS.amber} />
@@ -1099,13 +1095,18 @@ function NotificationsPage({ notifications, setNotifications, theme }) {
   const textColor = isLight ? "#111" : "white";
   return (
     <div style={{ padding: 24, background: isLight ? "rgba(255,255,255,0.94)" : "rgba(255,255,255,0.04)", borderRadius: 24 }}>
-      <h2 style={{ color: textColor, fontSize: 26, margin: "0 0 4px" }}>🔔 Notifications</h2>
+      <h2 style={{ color: textColor, fontSize: 26, margin: "0 0 4px" }}>Notifications</h2>
       <p style={{ color: isLight ? "rgba(15,23,42,0.65)" : "rgba(255,255,255,0.55)", fontSize: 14, marginBottom: 20 }}>{notifications.filter(m => !m.read).length} unread notifications</p>
       
       {notifications.length === 0 ? <p style={{ color: isLight ? "rgba(15,23,42,0.5)" : "rgba(255,255,255,0.4)" }}>No notifications yet.</p> : null}
       
       {notifications.map(m => (
-        <div key={m._id} onClick={() => setNotifications(notifications.map(x => x._id === m._id ? { ...x, read: true } : x))} style={{
+        <div key={m._id} onClick={() => {
+          if (!m.read) {
+            setNotifications(notifications.map(x => x._id === m._id ? { ...x, read: true } : x));
+            markNotificationAsRead(m._id).catch(err => console.error("Error marking notification as read", err));
+          }
+        }} style={{
           background: m.read ? (isLight ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.06)") : (isLight ? "#fff" : "rgba(255,255,255,0.1)"),
           border: `1px solid ${m.read ? (isLight ? "rgba(15,23,42,0.1)" : "rgba(255,255,255,0.15)") : COLORS.amber}`,
           borderRadius: 12, padding: "14px 16px", marginBottom: 10,
@@ -1135,14 +1136,18 @@ function FundraisersPage({ fundRequests, reload, theme, user }) {
   const [feedback, setFeedback] = useState({ rating: 5, comment: "" });
   const [loading, setLoading] = useState(false);
   const [viewDocUrl, setViewDocUrl] = useState(null);
+  const [stripeSuccessDonation, setStripeSuccessDonation] = useState(null);
 
   const handleDonate = (req) => {
     setSelectedReq(req);
     setCheckoutOpen(true);
   };
 
-  const handleOnlinePay = ({ amount, requestId, purpose, maxAmount }) => {
-    window.location.href = `/mock-checkout?amount=${amount}&request_id=${requestId}&purpose=${encodeURIComponent(purpose)}&max=${maxAmount}`;
+  const handleOnlinePay = async (paymentData) => {
+    if (paymentData?.confirm) {
+      return confirmPaymentIntent(paymentData.paymentIntentId);
+    }
+    return createPaymentIntent({ amount: Number(paymentData.amount), moneyRequestId: paymentData.requestId, purpose: paymentData.purpose });
   };
 
   const isLight = theme === "light";
@@ -1163,27 +1168,27 @@ function FundraisersPage({ fundRequests, reload, theme, user }) {
     }
   };
 
-  // Check URL params for success state from MockCheckout
+  // Confirm the Stripe Checkout session after the donor returns.
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("payment") === "success" && urlParams.get("request_id")) {
-      setPaymentStep(2); // Show feedback
-      if (urlParams.get("donation_id")) {
-         
-        setDonationId(urlParams.get("donation_id"));
-      }
-      reload();
-      // clean url
-      window.history.replaceState({}, document.title, window.location.pathname);
+    const sessionId = new URLSearchParams(window.location.search).get("session_id");
+    if (sessionId) {
+      confirmCheckoutSession(sessionId)
+        .then((response) => {
+          setStripeSuccessDonation(response?.data || null);
+          setDonationId(response?.data?._id || null);
+          reload();
+          window.history.replaceState({}, document.title, window.location.pathname);
+        })
+        .catch((err) => toast.error(err.response?.data?.message || "Payment confirmation failed"));
     }
   }, []);
 
   return (
     <div style={{ background: surfaceBg, borderRadius: 24, padding: 24, color: textColor }}>
       <div style={{ textAlign: "center", maxWidth: 720, margin: "0 auto 24px" }}>
-        <h2 style={{ color: textColor, fontSize: 26, fontWeight: 600, margin: "0 0 6px" }}>💰 Fundraisers</h2>
+        <h2 style={{ color: textColor, fontSize: 26, fontWeight: 600, margin: "0 0 6px" }}>Fundraisers</h2>
         <p style={{ color: mutedColor, fontSize: 14, margin: 0, maxWidth: 620, marginLeft: "auto", marginRight: "auto" }}>
-          Choose from 3 payment options — Online Card, Bank Transfer, or Cash Hand Over.
+          Choose from 3 payment options — Visa Card, Bank Transfer, or Cash Hand Over.
         </p>
       </div>
       {fundRequests.length === 0 ? <p style={{ color: mutedColor }}>No active fundraisers right now.</p> : (
@@ -1256,6 +1261,29 @@ function FundraisersPage({ fundRequests, reload, theme, user }) {
         onOnlinePay={handleOnlinePay}
         currentUserId={user?._id}
       />
+
+      {stripeSuccessDonation && createPortal(
+        <div style={{ position: "fixed", inset: 0, background: "rgba(4,12,8,0.86)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000000, padding: 20 }}>
+          <div style={{ width: "100%", maxWidth: 470, background: isLight ? "#fff" : "linear-gradient(160deg, #234d38, #14291e)", borderRadius: 24, padding: 32, textAlign: "center", boxShadow: "0 30px 80px rgba(0,0,0,0.55)" }}>
+            <div style={{ width: 72, height: 72, margin: "0 auto 16px", display: "grid", placeItems: "center", borderRadius: "50%", background: "rgba(126,200,160,0.18)", border: `2px solid ${COLORS.mint}`, color: COLORS.mint, fontSize: 36 }}>✓</div>
+            <div style={{ color: COLORS.mint, fontSize: 11, letterSpacing: 2, fontWeight: 800 }}>PAYMENT SUCCESSFUL</div>
+            <h2 style={{ color: isLight ? "#111" : "white", margin: "8px 0 10px" }}>Thank you for your donation!</h2>
+            <p style={{ color: isLight ? "rgba(15,23,42,0.65)" : "rgba(255,255,255,0.68)", fontSize: 14, lineHeight: 1.6, margin: "0 0 18px" }}>
+              Your payment is confirmed. A receipt has been sent to your registered email.
+            </p>
+            <div style={{ background: isLight ? "#f8fafc" : "rgba(255,255,255,0.07)", borderRadius: 14, padding: "8px 16px", marginBottom: 20, textAlign: "left" }}>
+              <div style={{ color: isLight ? "#64748b" : "rgba(255,255,255,0.55)", fontSize: 12, padding: "8px 0" }}>Amount <strong style={{ float: "right", color: isLight ? "#111" : "white" }}>LKR {Number(stripeSuccessDonation.amount || 0).toLocaleString()}</strong></div>
+              <div style={{ color: isLight ? "#64748b" : "rgba(255,255,255,0.55)", fontSize: 12, padding: "8px 0" }}>Payment <strong style={{ float: "right", color: isLight ? "#111" : "white" }}>Visa Card</strong></div>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              {stripeSuccessDonation.receiptUrl && <a href={stripeSuccessDonation.receiptUrl} target="_blank" rel="noreferrer" style={{ flex: 1, padding: 13, borderRadius: 11, background: COLORS.mint, color: COLORS.forest, fontWeight: 800, textDecoration: "none" }}>View & Download Receipt</a>}
+              <button onClick={() => { setStripeSuccessDonation(null); setPaymentStep(2); }} style={{ flex: 1, padding: 13, borderRadius: 11, background: "rgba(255,255,255,0.08)", color: isLight ? "#111" : "white", border: "1px solid rgba(255,255,255,0.16)", fontWeight: 700, cursor: "pointer" }}>Rate NGO</button>
+            </div>
+            <button onClick={() => setStripeSuccessDonation(null)} style={{ marginTop: 14, background: "none", border: "none", color: isLight ? "#64748b" : "rgba(255,255,255,0.6)", cursor: "pointer" }}>Close</button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Feedback Modal */}
       {paymentStep === 2 && createPortal(
@@ -1452,10 +1480,6 @@ export default function DonorDashboard({ theme }) {
         const res = await getNotifications();
         const allNotifs = res.data || [];
         setNotifications(allNotifs);
-        const unread = allNotifs.filter(n => !n.read);
-        if (unread.length > 0) {
-          await markNotificationsAsRead();
-        }
       } catch (err) {
         console.error("Error fetching notifications", err);
       }
@@ -1583,4 +1607,3 @@ export default function DonorDashboard({ theme }) {
     </DashboardLayout>
   );
 }
-

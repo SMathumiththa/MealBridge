@@ -43,7 +43,7 @@ const generateTaxReceipt = (donorName, donationDetails) => {
       ? [
           ['Donation type', 'Food donation'],
           ['Item', donationDetails.foodName || 'Food contribution'],
-          ['Quantity', `${donationDetails.quantity || '-'} ${donationDetails.unit || ''}`.trim()],
+          ['Quantity', `${donationDetails.quantity || donationDetails.originalQuantity || '-'} ${donationDetails.unit || ''}`.trim()],
           ['People supported', `Approximately ${donationDetails.peopleServed || 0}`]
         ]
       : [

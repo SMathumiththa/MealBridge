@@ -12,7 +12,6 @@ import DonorDashboard from "./pages/DonorDashboard";
 import NgoDashboard from "./pages/NgoDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import VolunteerDashboard from "./pages/VolunteerDashboard";
-import MockCheckout from "./pages/MockCheckout";
 import Welcome from "./pages/Welcome";
 import FoodDonationInfo from "./pages/FoodDonationInfo";
 import FundCampaignInfo from "./pages/FundCampaignInfo";
@@ -288,11 +287,6 @@ export default function App() {
             </ProtectedRoute>
           } />
           
-          <Route path="/mock-checkout" element={
-            <ProtectedRoute allowedRoles={["donor", "admin"]}>
-              <MockCheckout theme={theme} />
-            </ProtectedRoute>
-          } />
           <Route path="/donate-food" element={<FoodDonationInfo theme={theme} />} />
           <Route path="/fund-campaigns" element={<FundCampaignInfo theme={theme} />} />
           <Route path="/impact" element={<ImpactInfo theme={theme} />} />
@@ -304,6 +298,7 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPolicy theme={theme} />} />
           <Route path="/terms" element={<TermsOfService theme={theme} />} />
           <Route path="/about" element={<PublicInfo type="about" theme={theme} />} />
+          <Route path="/dashboard" element={<Navigate to="/donor" replace />} />
             
           <Route path="/" element={isAdminMode ? <Navigate to="/login" replace /> : <Welcome theme={theme} />} />
             <Route path="*" element={<Navigate to="/login" replace />} />

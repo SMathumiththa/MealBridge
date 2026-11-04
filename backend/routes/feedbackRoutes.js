@@ -12,10 +12,10 @@ const {
   deleteFeedback,
   getDonorRatingStats
 } = require("../controllers/feedbackController");
-const { protect } = require("../middleware/authMiddleware");
+const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 
 // Create feedback (NGO users only)
-router.post("/", protect, createFeedback);
+router.post("/", protect, authorizeRoles("ngo"), createFeedback);
 
 // Get all feedbacks (admin/public)
 router.get("/", protect, getAllFeedbacks);
@@ -38,9 +38,9 @@ router.get("/my/received", protect, getFeedbacksReceivedByNgo);
 router.get("/my/pending", protect, getFeedbacksPending);
 
 // Update feedback (NGO users only)
-router.put("/:feedbackId", protect, updateFeedback);
+router.put("/:feedbackId", protect, authorizeRoles("ngo"), updateFeedback);
 
 // Delete feedback (NGO users only)
-router.delete("/:feedbackId", protect, deleteFeedback);
+router.delete("/:feedbackId", protect, authorizeRoles("ngo"), deleteFeedback);
 
 module.exports = router;

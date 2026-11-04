@@ -50,6 +50,16 @@ const moneyDonationSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  stripeSessionId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  stripePaymentIntentId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
   confirmedAt: {
     type: Date
   },

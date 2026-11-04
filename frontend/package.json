@@ -8,6 +8,7 @@
     "dev:admin": "vite -c vite.admin.config.js",
     "build": "vite build",
     "build:admin": "vite build -c vite.admin.config.js",
+    "build:all": "npm run build && npm run build:admin",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -6,6 +6,10 @@ const Notification = require("../models/Notification");
 // ✅ CREATE FEEDBACK (NGO submits rating after delivery)
 const createFeedback = async (req, res) => {
   try {
+    if (String(req.user.role || "").trim().toLowerCase() !== "ngo") {
+      return res.status(403).json({ success: false, message: "Only NGOs can submit delivery feedback" });
+    }
+
     const { rating, comment, donorId, volunteerId, donationId, requestId } = req.body;
     const ngoId = req.user._id;
 
@@ -41,10 +45,6 @@ const createFeedback = async (req, res) => {
     }
 
     // Check if feedback already exists for this request
-    if (req.user.role !== "ngo") {
-      return res.status(403).json({ success: false, message: "Only NGOs can submit delivery feedback" });
-    }
-
     if (request.ngoId.toString() !== ngoId.toString()) {
       return res.status(403).json({ success: false, message: "You can rate only your own deliveries" });
     }
@@ -283,6 +283,10 @@ const getFeedbacksSubmittedByNgo = async (req, res) => {
 // ✅ UPDATE FEEDBACK (Edit existing feedback)
 const updateFeedback = async (req, res) => {
   try {
+    if (String(req.user.role || "").trim().toLowerCase() !== "ngo") {
+      return res.status(403).json({ success: false, message: "Only NGOs can update delivery feedback" });
+    }
+
     const { feedbackId } = req.params;
     const { rating, comment } = req.body;
     const ngoId = req.user._id;
@@ -340,6 +344,10 @@ const updateFeedback = async (req, res) => {
 // ✅ DELETE FEEDBACK
 const deleteFeedback = async (req, res) => {
   try {
+    if (String(req.user.role || "").trim().toLowerCase() !== "ngo") {
+      return res.status(403).json({ success: false, message: "Only NGOs can delete delivery feedback" });
+    }
+
     const { feedbackId } = req.params;
     const ngoId = req.user._id;
 

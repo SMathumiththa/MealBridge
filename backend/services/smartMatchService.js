@@ -70,10 +70,10 @@ function calculateMatchScore(donation, ngo) {
 
   // 2. Food Preservation Factor (20%)
   let preservationScore = PRESERVATION_WEIGHT; // Default full score
-  const isPerishable = donation.foodType?.toLowerCase().includes('cooked') || donation.foodType?.toLowerCase().includes('perishable');
+  const hoursToExpiry = donation.expiryTime ? (new Date(donation.expiryTime).getTime() - Date.now()) / (1000 * 60 * 60) : 24;
+  const isPerishable = hoursToExpiry <= 12 || Boolean(donation.isEmergency);
   
   if (isPerishable) {
-    const hoursToExpiry = (new Date(donation.expiryTime).getTime() - Date.now()) / (1000 * 60 * 60);
     if (hoursToExpiry < 6 && distance !== null && distance > 10) {
       // Heavily penalize if it's expiring soon and NGO is > 10km away
       preservationScore = 0;

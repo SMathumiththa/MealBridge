@@ -17,7 +17,7 @@ const adminOnly = authorizeRoles("admin");
 router.post("/setup-admin", async (req, res) => {
   try {
     const setupSecret = process.env.ADMIN_SETUP_SECRET;
-    if (setupSecret && req.body?.secret !== setupSecret) {
+    if (!setupSecret || req.body?.secret !== setupSecret) {
       return res.status(403).json({ success: false, message: "Invalid setup secret" });
     }
 
@@ -210,22 +210,6 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
   }
 });
 
-// TEMP DELETE DONATIONS
-router.get("/temp_delete_donations", async (req, res) => {
-  try {
-    const MoneyDonation = require("../models/MoneyDonation");
-    
-    // Find donations to delete (amount 2000 or 5000)
-    const donationsToDelete = await MoneyDonation.find({ amount: { $in: [2000, 5000] } });
-    
-    // Delete them
-    const deleteResult = await MoneyDonation.deleteMany({ amount: { $in: [2000, 5000] } });
-    
-    res.json({ success: true, deletedCount: deleteResult.deletedCount, donations: donationsToDelete });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
 
 // 🚫 SUSPEND USER (Admin Action)
 router.put("/users/:id/suspend", protect, adminOnly, async (req, res) => {

@@ -16,6 +16,7 @@ const adminSpaPlugin = () => ({
 
 export default defineConfig({
   plugins: [react(), adminSpaPlugin()],
+  base: '/admin/',
   server: {
     port: 4174,
     open: true,
@@ -25,7 +26,10 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: 'admin.html'
-      }
+      },
+      output: {
+        inlineDynamicImports: true,
+      },
     }
   }
 })

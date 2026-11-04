@@ -41,6 +41,33 @@ if (isCloudinaryConfigured) {
   });
 }
 
-const upload = multer({ storage: storage });
+const ALLOWED_MIME_TYPES = {
+  '.jpg': ['image/jpeg'],
+  '.jpeg': ['image/jpeg'],
+  '.png': ['image/png'],
+  '.webp': ['image/webp'],
+  '.jfif': ['image/jpeg'],
+  '.gif': ['image/gif'],
+  '.avif': ['image/avif'],
+  '.heic': ['image/heic', 'image/heif'],
+  '.pdf': ['application/pdf']
+};
+
+const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedMimeTypes = ALLOWED_MIME_TYPES[ext] || [];
+
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Use a matching JPG, PNG, WEBP, GIF, AVIF, HEIC, or PDF file.'), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
 
 module.exports = { cloudinary, upload, isCloudinaryConfigured };

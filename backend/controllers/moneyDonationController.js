@@ -1,3 +1,4 @@
+const BASE_URL = process.env.API_PUBLIC_URL || process.env.BACKEND_URL || 'http://localhost:5000';
 const MoneyDonation = require("../models/MoneyDonation");
 const MoneyRequest = require("../models/MoneyRequest");
 const Notification = require("../models/Notification");
@@ -29,7 +30,7 @@ function isPendingMethod(method) {
 function getFileUrl(file) {
   if (!file) return "";
   if (isCloudinaryConfigured) return file.path;
-  return `http://localhost:5000/uploads/${file.filename}`;
+  return `${BASE_URL}/uploads/${file.filename}`;
 }
 
 async function getRemainingForRequest(moneyRequestId, excludeDonationId = null) {
@@ -101,7 +102,7 @@ async function finalizeDonation(donation, moneyRequest, ngoUser, io = null) {
       amount: donation.amount,
       campaignName: moneyRequest.purpose
     });
-    donation.receiptUrl = `http://localhost:5000${receiptPath}`;
+    donation.receiptUrl = `${BASE_URL}${receiptPath}`;
     await donation.save();
     const receiptNotification = await Notification.create({
       recipientId: donation.donorId,
@@ -171,9 +172,9 @@ exports.createMoneyDonation = async (req, res) => {
       method = "recurring";
     }
 
-    const status = method === "qr_payment" ? "pending" : "success";
+    const status = isPendingMethod(method) ? "pending" : "success";
 
-    if ((method === "bank_transfer" || method === "qr_payment") && !receiptImage && status === "pending") {
+    if ((method === "bank_transfer" || method === "qr_payment") && !receiptImage) {
       return res.status(400).json({ success: false, message: "Please upload your payment receipt" });
     }
 
@@ -216,7 +217,7 @@ exports.createMoneyDonation = async (req, res) => {
         if (req.user.email) {
           sendReceiptEmail(req.user.email, req.user.name || 'Donor', receiptPath);
         }
-        donation.receiptUrl = `http://localhost:5000${receiptPath}`;
+        donation.receiptUrl = `${BASE_URL}${receiptPath}`;
         await donation.save();
         const receiptNotification = await Notification.create({
           recipientId: req.user._id,
@@ -349,14 +350,23 @@ exports.addFeedback = async (req, res) => {
       return res.status(404).json({ success: false, message: "Donation not found" });
     }
 
-    // Temporarily bypassing authorization check to fix the error reported by the user
-    // if (donation.donorId.toString() !== req.user._id.toString()) {
-    //   return res.status(403).json({ success: false, message: `Not authorized. Donor ID: ${donation.donorId}, User ID: ${req.user._id}` });
-    // }
+    if (donation.donorId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Only the donor can submit feedback for this donation" });
+    }
 
-    // Allowed feedback for pending transactions as per user request
+    if (donation.paymentStatus !== "success") {
+      return res.status(400).json({ success: false, message: "Feedback is available after the donation is confirmed" });
+    }
 
-    donation.feedback = { rating, comment };
+    if (!Number.isInteger(Number(rating)) || Number(rating) < 1 || Number(rating) > 5) {
+      return res.status(400).json({ success: false, message: "Rating must be a whole number between 1 and 5" });
+    }
+
+    if (typeof comment === "string" && comment.length > 500) {
+      return res.status(400).json({ success: false, message: "Feedback comment cannot exceed 500 characters" });
+    }
+
+    donation.feedback = { rating: Number(rating), comment: (comment || "").trim() };
     await donation.save();
 
     const moneyRequest = await MoneyRequest.findById(donation.moneyRequestId);

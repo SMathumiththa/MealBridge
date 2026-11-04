@@ -1,5 +1,3 @@
-import React from "react";
-
 /**
  * ReachingHandsDecoration
  * Decorative side illustration of community hands reaching out from the page edge.
@@ -14,8 +12,6 @@ export default function ReachingHandsDecoration({
   className = "",
   opacity = 1,
 }) {
-  const isLeft = side === "left";
-
   return (
     <aside
       className={`reaching-hands-decoration reaching-hands-${side} ${className}`}

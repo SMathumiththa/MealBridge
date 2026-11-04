@@ -45,8 +45,8 @@ const authorizeRoles = (...allowedRoles) => {
     }
 
     // Ensure case-insensitive comparison
-    const userRole = req.user.role ? req.user.role.trim().toLowerCase() : "";
-    const allowed = allowedRoles.map((r) => r.toLowerCase());
+    const userRole = String(req.user.role || "").trim().toLowerCase();
+    const allowed = allowedRoles.map((r) => String(r).trim().toLowerCase());
 
     if (!allowed.includes(userRole)) {
       return res.status(403).json({

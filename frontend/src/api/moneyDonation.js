@@ -53,7 +53,7 @@ export const getAllMoneyDonations = async () => {
 };
 
 export const METHOD_LABELS = {
-  online: "Online Card",
+  online: "Visa Card",
   bank_transfer: "Bank Transfer",
   cash_handover: "Cash Hand Over",
   handover: "Cash Hand Over",

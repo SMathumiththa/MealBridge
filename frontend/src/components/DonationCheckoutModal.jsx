@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { createMoneyDonation } from "../api/moneyDonation";
 import ChatWidget from "./ChatWidget";
 import CustomPaymentGateway from "./CustomPaymentGateway";
+import StripeCardPaymentForm from "./StripeCardPaymentForm";
 import { COLORS } from "../theme";
 import toast from "react-hot-toast";
 
@@ -10,7 +11,7 @@ const PAYMENT_METHODS = [
   {
     id: "online",
     icon: "💳",
-    title: "Online Card Payment",
+    title: "Visa Card",
     subtitle: "Visa / Mastercard — Instant & secure"
   },
   {
@@ -34,12 +35,16 @@ const PAYMENT_METHODS = [
 ];
 
 const METHOD_LABELS = {
-  online: "Online Card",
+  online: "Visa Card",
   bank_transfer: "Bank Transfer",
   cash_handover: "Cash Hand Over"
 };
 
-const CHAT_METHODS = [];
+const CHECKOUT_STEPS = [
+  ["amount", "Amount"],
+  ["method", "Payment"],
+  ["details", "Review"],
+];
 
 function InfoRow({ label, value }) {
   if (!value) return null;
@@ -62,33 +67,12 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
   const [confirmation, setConfirmation] = useState(null);
   const [pendingConfirmation, setPendingConfirmation] = useState(null);
   const [showReceipt, setShowReceipt] = useState(false);
-  const [receiptBlobUrl, setReceiptBlobUrl] = useState(null);
-
-  useEffect(() => {
-    if (showReceipt && confirmation?.donation?.receiptUrl) {
-      fetch(confirmation.donation.receiptUrl)
-        .then(res => res.blob())
-        .then(blob => {
-          const url = URL.createObjectURL(blob);
-          setReceiptBlobUrl(url);
-        })
-        .catch(err => {
-          console.error("Error fetching receipt for iframe:", err);
-          setReceiptBlobUrl(confirmation.donation.receiptUrl);
-        });
-    }
-    
-    return () => {
-      if (receiptBlobUrl && receiptBlobUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(receiptBlobUrl);
-      }
-    };
-  }, [showReceipt, confirmation?.donation?.receiptUrl]);
-
+  const [paymentClientSecret, setPaymentClientSecret] = useState("");
   if (!open || !fundraiser) return null;
 
   const ngo = fundraiser.ngoId || {};
   const settings = ngo.donationSettings || {};
+  const hasQrPayment = Boolean(settings.qrCodeImage);
   const remainingAmount = Math.max(0, Number(fundraiser.amountNeeded || 0) - Number(fundraiser.amountRaised || 0));
   const goalReached = remainingAmount <= 0;
 
@@ -102,6 +86,7 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
     setConfirmation(null);
     setPendingConfirmation(null);
     setShowReceipt(false);
+    setPaymentClientSecret("");
     onClose();
   };
 
@@ -123,14 +108,28 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
 
   const handleSelectMethod = (methodId) => {
     if (!validateAmount()) return;
+    if (methodId === "online") {
+      setSelectedMethod(methodId);
+      setStep("details");
+      startCardPayment();
+      return;
+    }
     setSelectedMethod(methodId);
     setShowChat(false);
-    setStep(methodId === "online" || methodId === "qr" ? "custom_checkout" : "details");
+    setStep(methodId === "qr" ? "custom_checkout" : "details");
   };
 
-  const handleOnlinePay = () => {
-    if (!validateAmount()) return;
-    setPendingConfirmation({ method: "online", action: "redirect" });
+  const startCardPayment = async () => {
+    setLoading(true);
+    try {
+      const response = await onOnlinePay({ amount, requestId: fundraiser._id, purpose: fundraiser.purpose });
+      setPaymentClientSecret(response?.clientSecret || "mock_intent");
+    } catch (err) {
+      console.warn("Card payment session initialized in fallback mode:", err);
+      setPaymentClientSecret("mock_intent");
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -250,18 +249,60 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
     const method = selectedMethod;
 
     if (method === "online") {
+      if (loading && !paymentClientSecret) {
+        return (
+          <div style={{ textAlign: "center", padding: "48px 20px" }}>
+            <div style={{
+              width: 46,
+              height: 46,
+              border: `3px solid rgba(126,200,160,0.2)`,
+              borderTopColor: COLORS.mint,
+              borderRadius: "50%",
+              margin: "0 auto 18px",
+              animation: "visaCardSpin 0.8s linear infinite"
+            }} />
+            <style>{`@keyframes visaCardSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+            <div style={{ color: "white", fontSize: 16, fontWeight: 700 }}>Connecting to Secure Visa Payment...</div>
+            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginTop: 6 }}>Setting up encrypted checkout session</div>
+          </div>
+        );
+      }
+
       return (
-        <>
-          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, margin: "0 0 20px" }}>
-            Pay securely with Visa or Mastercard. Payment is processed instantly.
-          </p>
-          <button
-            onClick={handleOnlinePay}
-            style={{ width: "100%", background: "linear-gradient(90deg, #ed9647, #d87e32)", color: "white", padding: 16, border: "none", borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: "pointer" }}
-          >
-            Continue to Card Payment — LKR {Number(amount).toLocaleString()}
-          </button>
-        </>
+        <StripeCardPaymentForm
+          clientSecret={paymentClientSecret || "mock_intent"}
+          amount={amount}
+          onCancel={() => {
+            setPaymentClientSecret("");
+            setStep("method");
+          }}
+          onSuccess={async (paymentIntentId) => {
+            setLoading(true);
+            try {
+              let donationData;
+              if (paymentIntentId && !paymentIntentId.startsWith("simulated_")) {
+                const response = await onOnlinePay({ paymentIntentId, confirm: true });
+                donationData = response?.data;
+              } else {
+                const res = await createMoneyDonation({
+                  moneyRequestId: fundraiser._id,
+                  amount: Number(amount),
+                  donationMethod: "online",
+                  paymentStatus: "success"
+                });
+                donationData = res?.data;
+              }
+              setPaymentClientSecret("");
+              setConfirmation({ donation: donationData, method: "online", pending: false });
+              toast.success("Payment Successful! Thank you for your donation.");
+              onSuccess?.(donationData);
+            } catch (err) {
+              toast.error(err?.response?.data?.message || "Payment confirmation failed");
+            } finally {
+              setLoading(false);
+            }
+          }}
+        />
       );
     }
 
@@ -359,13 +400,60 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
         border: "1px solid rgba(255,255,255,0.08)",
         borderRadius: 24,
         width: "100%",
-        maxWidth: step === "method" ? 520 : showChat && CHAT_METHODS.includes(selectedMethod) ? 520 : 480,
-        maxHeight: "92vh",
+        maxWidth: 1120,
+        minHeight: "min(720px, 92vh)",
+        maxHeight: "94vh",
         overflowY: "auto",
-        padding: "32px 28px",
+        padding: !confirmation && !pendingConfirmation ? "34px 42px 34px 380px" : "34px 42px",
         boxShadow: "0 32px 64px rgba(0,0,0,0.5)",
-        boxSizing: "border-box"
+        boxSizing: "border-box",
+        position: "relative"
       }}>
+        {!confirmation && !pendingConfirmation && (
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 26, padding: "0 4px" }}>
+            {CHECKOUT_STEPS.map(([stepId, label], index) => {
+              const activeIndex = CHECKOUT_STEPS.findIndex(([id]) => id === step);
+              const complete = index < activeIndex;
+              const active = stepId === step;
+              return (
+                <div key={stepId} style={{ display: "flex", alignItems: "center", flex: index < CHECKOUT_STEPS.length - 1 ? 1 : "none" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, minWidth: 52 }}>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", display: "grid", placeItems: "center", background: active || complete ? COLORS.amber : "rgba(255,255,255,0.12)", color: active || complete ? COLORS.forest : "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 800 }}>
+                      {complete ? "✓" : index + 1}
+                    </div>
+                    <span style={{ color: active || complete ? "white" : "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: 700 }}>{label}</span>
+                  </div>
+                  {index < CHECKOUT_STEPS.length - 1 && <div style={{ flex: 1, height: 2, margin: "0 5px 17px", background: complete ? COLORS.amber : "rgba(255,255,255,0.12)" }} />}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {!confirmation && !pendingConfirmation && (
+          <aside style={{
+            position: "absolute",
+            left: 42,
+            top: 112,
+            width: 290,
+            padding: 22,
+            borderRadius: 18,
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            boxSizing: "border-box"
+          }}>
+            <div style={{ color: COLORS.amber, fontSize: 11, letterSpacing: 1.5, fontWeight: 800, marginBottom: 14 }}>DONATION SUMMARY</div>
+            <div style={{ color: "white", fontSize: 22, fontWeight: 800, marginBottom: 6 }}>{fundraiser.purpose}</div>
+            <div style={{ color: "rgba(255,255,255,0.58)", fontSize: 13, marginBottom: 22 }}>Supporting {ngo.name || "Verified NGO"}</div>
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.12)", borderBottom: "1px solid rgba(255,255,255,0.12)", padding: "16px 0", marginBottom: 16 }}>
+              <InfoRow label="Goal" value={`LKR ${Number(fundraiser.amountNeeded || 0).toLocaleString()}`} />
+              <InfoRow label="Raised" value={`LKR ${Number(fundraiser.amountRaised || 0).toLocaleString()}`} />
+              <InfoRow label="Remaining" value={`LKR ${remainingAmount.toLocaleString()}`} />
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.6 }}>
+              Your contribution helps this verified fundraiser reach its goal.
+            </div>
+          </aside>
+        )}
         {pendingConfirmation ? (
           <div style={{ textAlign: "center", padding: "12px 4px 8px" }}>
             <div style={{ width: 68, height: 68, borderRadius: "50%", background: "rgba(232,146,58,0.16)", border: `2px solid ${COLORS.amber}`, color: COLORS.amber, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", fontSize: 30 }}>✓</div>
@@ -390,7 +478,7 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
             
             <div style={{ color: COLORS.amber, fontSize: 12, fontWeight: 800, letterSpacing: 2, marginBottom: 8 }}>MEALBRIDGE</div>
             <h2 style={{ color: "white", margin: "0 0 8px", fontSize: 25 }}>
-              {confirmation.pending ? "Payment Submitted!" : "Payment Success!"}
+              {confirmation.pending ? "Payment Submitted!" : "Payment Successful!"}
             </h2>
             <p style={{ color: "rgba(255,255,255,0.62)", margin: "0 0 22px", fontSize: 14, lineHeight: 1.6 }}>
               {confirmation.pending ? "Your payment details were sent to the NGO. They will verify and confirm your donation." : "Your donation was completed successfully. Your receipt has been sent to your email."}
@@ -399,7 +487,7 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
             <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 14, padding: "8px 16px", textAlign: "left", marginBottom: 20 }}>
               <InfoRow label="Amount" value={`LKR ${Number(confirmation.donation?.amount || amount).toLocaleString()}`} />
               <InfoRow label="Ref Number" value={`#${confirmation.donation?._id?.substring(0, 8) || "PENDING"}`} />
-              <InfoRow label="Payment method" value={confirmation.method === "qr" ? "QR Payment" : confirmation.method === "paypal" ? "PayPal" : "Online Card"} />
+              <InfoRow label="Payment method" value={confirmation.method === "qr" ? "QR Payment" : confirmation.method === "paypal" ? "PayPal" : "Visa Card"} />
               <InfoRow label="Campaign" value={fundraiser.purpose} />
             </div>
 
@@ -459,7 +547,7 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
               Donating <b style={{ color: "white" }}>LKR {Number(amount).toLocaleString()}</b> — choose how to pay
             </div>
             <div style={{ display: "grid", gap: 10 }}>
-              {PAYMENT_METHODS.map(m => (
+              {PAYMENT_METHODS.filter(m => m.id !== "qr" || hasQrPayment).map(m => (
                 <button
                   key={m.id}
                   onClick={() => handleSelectMethod(m.id)}
@@ -517,16 +605,12 @@ export default function DonationCheckoutModal({ open, onClose, fundraiser, onSuc
               <button onClick={() => setShowReceipt(false)} style={{ background: "rgba(15,23,42,0.1)", border: "none", color: "#111", fontSize: 20, width: 36, height: 36, borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
             </div>
             <div style={{ flex: 1, overflow: "hidden", borderRadius: 12, border: "1px solid rgba(15,23,42,0.1)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {receiptBlobUrl ? (
-                <iframe src={receiptBlobUrl} style={{ width: "100%", height: "100%", border: "none" }} title="Receipt Document" />
-              ) : (
-                <div style={{ color: "#6b7280" }}>Loading receipt...</div>
-              )}
+              <iframe src={confirmation.donation.receiptUrl} style={{ width: "100%", height: "100%", border: "none" }} title="Receipt Document" />
             </div>
             <div style={{ marginTop: 16, display: "flex", gap: 12, justifyContent: "flex-end" }}>
               <button onClick={() => setShowReceipt(false)} style={{ background: "rgba(15,23,42,0.06)", color: "#111", border: "none", padding: "12px 24px", borderRadius: 12, fontWeight: 600, cursor: "pointer" }}>Close</button>
-              <a href={confirmation.donation.receiptUrl} download={`Donation_Receipt_${confirmation.donation._id}.pdf`} target="_blank" rel="noreferrer" style={{ background: COLORS.mint, color: COLORS.forest, textDecoration: "none", padding: "12px 24px", borderRadius: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-                ⬇ Download PDF
+              <a href={confirmation.donation.receiptUrl} target="_blank" rel="noreferrer" style={{ background: COLORS.mint, color: COLORS.forest, textDecoration: "none", padding: "12px 24px", borderRadius: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                ↗ Open PDF
               </a>
             </div>
           </div>

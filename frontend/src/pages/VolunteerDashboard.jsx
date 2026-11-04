@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { getRequests, updateRequest, assignVolunteer } from "../api/request";
-import { getNotifications, markNotificationsAsRead } from "../api/notification";
+import { verifyAuth } from "../api/auth";
+import { getNotifications, markNotificationAsRead } from "../api/notification";
 import io from "socket.io-client";
 import LiveTracker from "../components/LiveTracker";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { COLORS } from "../theme";
+import DashboardIcon from "../components/DashboardIcon";
 import ChatWidget from "../components/ChatWidget";
 import DashboardLayout from "../components/DashboardLayout";
 import StatCard from "../components/StatCard";
@@ -37,7 +39,7 @@ function VolunteerFeedbacks({ user, theme, activePage }) {
 
   return (
     <div style={{ padding: "8px 0 24px", maxWidth: 980, margin: "0 auto" }}>
-      <h2 style={{ color: textColor, fontSize: 28, textAlign: "center", margin: "0 0 24px", fontWeight: 700 }}>⭐ {t("common.feedbackRatings")}</h2>
+      <h2 style={{ color: textColor, fontSize: 28, textAlign: "center", margin: "0 0 24px", fontWeight: 700 }}>{t("common.feedbackRatings")}</h2>
       <div style={{ display: "flex", gap: 16, marginBottom: 30, flexWrap: "wrap", justifyContent: "center" }}>
         <StatCard icon="⭐" label={t("common.averageRating")} value={volunteerInfo?.averageRating ? volunteerInfo.averageRating.toFixed(1) : (user?.averageRating ? user.averageRating.toFixed(1) : "0.0")} color={COLORS.amber} align="center" />
         <StatCard icon="✅" label={t("common.totalReviews")} value={feedbacks.length} color={COLORS.mint} align="center" />
@@ -80,12 +82,12 @@ function VolunteerNotifications({ notifications, setNotifications, theme }) {
 
   const markRead = (id) => {
     setNotifications(notifications.map(notification => notification._id === id ? { ...notification, read: true } : notification));
-    markNotificationsAsRead().catch(() => {});
+    markNotificationAsRead(id).catch(err => console.error("Error marking notification as read", err));
   };
 
   return (
     <div style={{ padding: 24, background: isLight ? "rgba(255,255,255,0.94)" : "rgba(255,255,255,0.04)", borderRadius: 24 }}>
-      <h2 style={{ color: textColor, fontSize: 26, margin: "0 0 4px" }}>🔔 {t("common.notifications")}</h2>
+      <h2 style={{ color: textColor, fontSize: 26, margin: "0 0 4px" }}>{t("common.notifications")}</h2>
       <p style={{ color: mutedColor, fontSize: 14, marginBottom: 20 }}>{notifications.filter(notification => !notification.read).length} unread notifications</p>
       {notifications.length === 0 && <p style={{ color: mutedColor }}>{t("common.noNotifications")}</p>}
       {notifications.map(notification => (
@@ -123,7 +125,7 @@ function VolunteerHome({ setActive, user, requests, theme }) {
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center", background: pageBg, padding: isLight ? "28px 20px 0" : 0, borderRadius: isLight ? 24 : 0 }}>
-      <h2 style={{ color: textColor, fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{greeting}, {user?.name || "Volunteer"}! 👋</h2>
+      <h2 style={{ color: textColor, fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{greeting}, {user?.name || "Volunteer"}</h2>
       <p style={{ color: mutedColor, fontSize: 16, marginBottom: 32 }}>{t("common.volunteerWelcome")}</p>
 
       <div style={{ display: "flex", gap: 16, marginBottom: 36, flexWrap: "wrap", justifyContent: "center", textAlign: "left" }}>
@@ -138,11 +140,11 @@ function VolunteerHome({ setActive, user, requests, theme }) {
           <button onClick={() => setActive("availablePickups")} style={{
             background: COLORS.mint, color: COLORS.forest, border: "none", borderRadius: 12,
             padding: "14px 28px", fontWeight: 700, fontSize: 16, cursor: "pointer", boxShadow: "0 4px 15px rgba(121,189,143,0.3)"
-          }}>👀 Find Pickups</button>
+          }}><DashboardIcon name="eye" size={17} /> Find Pickups</button>
           <button onClick={() => setActive("myDeliveries")} style={{
             background: "transparent", color: COLORS.mint, border: `2px solid ${COLORS.mint}`,
             borderRadius: 12, padding: "12px 28px", fontWeight: 600, fontSize: 16, cursor: "pointer",
-          }}>🚚 My Deliveries</button>
+          }}><DashboardIcon name="truck" size={17} /> My Deliveries</button>
         </div>
       </div>
     </div>
@@ -178,20 +180,13 @@ export default function VolunteerDashboard({ theme }) {
         setRequests(res.data);
       }
       
-      // Update local user data if possible, usually by hitting a /me endpoint or just waiting for next login
-      // A quick fix is to fetch /verify
-      const token = localStorage.getItem("token");
-      if (token) {
-        const verifyRes = await fetch(`http://${window.location.hostname}:5000/api/auth/verify`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }).then(r => r.json());
-        if (verifyRes.success) {
-          setUser(verifyRes.user);
-          localStorage.setItem("user", JSON.stringify(verifyRes.user));
-        }
+      const verifyRes = await verifyAuth();
+      if (verifyRes.success) {
+        setUser(verifyRes.user);
+        localStorage.setItem("user", JSON.stringify(verifyRes.user));
       }
-    } catch {
-      console.log("Failed to load deliveries");
+    } catch (error) {
+      console.error("Failed to load volunteer dashboard data:", error);
     }
   };
 
@@ -307,7 +302,7 @@ export default function VolunteerDashboard({ theme }) {
     ),
     myDeliveries: (
       <div>
-        <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>🚚 {t("volunteer.myDeliveriesTitle", { defaultValue: "My Active Deliveries" })} ({myDeliveries.filter(m => m.status !== "completed").length})</h2>
+        <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>{t("volunteer.myDeliveriesTitle", { defaultValue: "My Active Deliveries" })} ({myDeliveries.filter(m => m.status !== "completed").length})</h2>
         {myDeliveries.length === 0 ? <p>You have no delivery history.</p> : (
           <div style={{ display: "grid", gap: 16 }}>
             {myDeliveries.map(r => (
@@ -460,7 +455,7 @@ export default function VolunteerDashboard({ theme }) {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div style={{ background: panelBg, border: panelBorder, borderRadius: 20, padding: 24, width: "100%", maxWidth: 600 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h3 style={{ margin: 0, color: textColor }}>📍 Live Delivery Route</h3>
+              <h3 style={{ margin: 0, color: textColor }}>Live Delivery Route</h3>
               <button onClick={() => setTrackDelivery(null)} style={{ background: "transparent", border: "none", color: textColor, fontSize: 24, cursor: "pointer" }}>✕</button>
             </div>
               <LiveTracker
@@ -507,10 +502,9 @@ function ProfileInputField({ label, value, onChange, type = "text", icon, theme,
           <span style={{ 
             position: "absolute", 
             left: 12, 
-            fontSize: 16, 
             color: mutedColor 
           }}>
-            {icon}
+            <DashboardIcon name={icon} size={16} color="currentColor" />
           </span>
         )}
         <input
@@ -648,7 +642,7 @@ function ProfilePage({ user, setUser, theme }) {
   return (
     <div style={{ background: isLight ? "rgba(255,255,255,0.94)" : "transparent", borderRadius: 24, padding: 24, color: textColor }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <h2 style={{ color: textColor, fontSize: 26, margin: 0 }}>🏢 Volunteer Profile</h2>
+        <h2 style={{ color: textColor, fontSize: 26, margin: 0 }}>Volunteer Profile</h2>
         {!edit && (
           <button 
             onClick={() => setEdit(true)} 

@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { createMoneyDonation } from "../api/moneyDonation";
 import toast from "react-hot-toast";
 import FloatingFood from "../components/FloatingFood";
+import VisaCardPreview from "../components/VisaCardPreview";
 
 function formatCardNumber(value) {
   const digits = value.replace(/\D/g, "").slice(0, 16);
@@ -21,7 +21,10 @@ function formatCvc(value) {
 }
 
 function generateTransactionId() {
-  return "12345678";
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
 }
 
 function maskCardNumber(cardNumber) {
@@ -66,6 +69,7 @@ export default function MockCheckout({ theme = "dark" }) {
   const [cvc, setCvc] = useState("");
   const [step, setStep] = useState("form");
   const [receiptDetails, setReceiptDetails] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const token = localStorage.getItem("token");
   const user = (() => {
@@ -111,7 +115,7 @@ export default function MockCheckout({ theme = "dark" }) {
     return true;
   };
 
-  const handlePay = async (e) => {
+  const handleOpenConfirm = (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
@@ -119,7 +123,10 @@ export default function MockCheckout({ theme = "dark" }) {
       toast.error(`Maximum donation allowed is LKR ${maxAmount.toLocaleString()}`);
       return;
     }
+    setShowConfirmModal(true);
+  };
 
+  const handleConfirmPay = async () => {
     setLoading(true);
     try {
       await new Promise(r => setTimeout(r, 1200));
@@ -145,9 +152,12 @@ export default function MockCheckout({ theme = "dark" }) {
         donationId: res.data?._id,
         receiptUrl: res.data?.receiptUrl
       });
+      setShowConfirmModal(false);
+      toast.success("Payment Successful! Thank you for your donation.");
       setStep("success");
     } catch (err) {
       toast.error(err?.response?.data?.message || "Payment Failed");
+      setShowConfirmModal(false);
     } finally {
       setLoading(false);
     }
@@ -164,7 +174,7 @@ export default function MockCheckout({ theme = "dark" }) {
     return url.replace(/http:\/\/localhost:5000/g, backendOrigin);
   };
 
-  const handleDownloadReceipt = async () => {
+  const handleOpenReceipt = () => {
     if (!receiptDetails?.receiptUrl) {
       toast.error("Receipt URL not found");
       return;
@@ -172,26 +182,7 @@ export default function MockCheckout({ theme = "dark" }) {
     
     const correctedUrl = getCorrectReceiptUrl(receiptDetails.receiptUrl);
     
-    try {
-      toast.loading("Downloading receipt...", { id: "downloading" });
-      const response = await fetch(correctedUrl);
-      if (!response.ok) throw new Error("Failed to download");
-      
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.setAttribute("download", `MealBridge_Receipt_${receiptDetails.transactionId || "donation"}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-      toast.success("Receipt downloaded successfully!", { id: "downloading" });
-    } catch (error) {
-      console.error("Download failed:", error);
-      window.open(correctedUrl, "_blank", "noopener,noreferrer");
-      toast.success("Receipt opened in new tab", { id: "downloading" });
-    }
+    window.open(correctedUrl, "_blank", "noopener,noreferrer");
   };
 
   const handlePrintReceipt = () => {
@@ -287,17 +278,23 @@ export default function MockCheckout({ theme = "dark" }) {
           }}>
             <div style={{ textAlign: "center", marginBottom: 30 }}>
               <div style={{ fontSize: 13, color: "#2563eb", fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>SECURE CHECKOUT</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: isLight ? "#0f172a" : "#e8923a", marginBottom: 8 }}>Visa / Mastercard Payment</div>
-              <div style={{ fontSize: 13, color: isLight ? "#64748b" : "rgba(255,255,255,0.55)", marginBottom: 12 }}>Secure online card payment (simulation mode)</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: isLight ? "#0f172a" : "#e8923a", marginBottom: 8 }}>Visa Card Payment</div>
+              <div style={{ fontSize: 13, color: isLight ? "#64748b" : "rgba(255,255,255,0.55)", marginBottom: 12 }}>Secure online card payment</div>
               <div style={{ fontSize: 15, color: isLight ? "#475569" : "rgba(255,255,255,0.7)" }}>
                 Donation for: <b style={{ color: isLight ? "#0f172a" : "white" }}>{purpose}</b>
               </div>
-              <div style={{ fontSize: 32, fontWeight: 800, color: isLight ? "#0f172a" : "white", marginTop: 12 }}>
+              <div style={{ fontSize: 32, fontWeight: 800, color: isLight ? "#0f172a" : "white", marginTop: 12, marginBottom: 18 }}>
                 LKR {Number(amount).toLocaleString()}
               </div>
+
+              {/* Compact Matte Black Visa Card matching Image 3 (no card name on the card) */}
+              <VisaCardPreview
+                cardNumber={cardNumber ? (cardNumber.length >= 19 ? cardNumber : cardNumber + " •••• •••• ••••".slice(cardNumber.length)) : "••••  ••••  ••••  ••••"}
+                expiry={expiry || "04/24"}
+              />
             </div>
 
-            <form onSubmit={handlePay} style={{ display: "grid", gap: 20 }}>
+            <form onSubmit={handleOpenConfirm} style={{ display: "grid", gap: 20 }}>
               <div>
                 <label style={labelStyle}>Card Information</label>
                 <input
@@ -369,6 +366,122 @@ export default function MockCheckout({ theme = "dark" }) {
                 Cancel and Return
               </button>
             </form>
+
+            {/* Confirmation Popup Modal */}
+            {showConfirmModal && (
+              <div style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(3, 10, 6, 0.88)",
+                backdropFilter: "blur(6px)",
+                zIndex: 1000005,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 20,
+                boxSizing: "border-box"
+              }}>
+                <div style={{
+                  width: "100%",
+                  maxWidth: 420,
+                  background: "linear-gradient(160deg, #1b3829, #102419)",
+                  border: "1px solid rgba(126,200,160,0.3)",
+                  borderRadius: 22,
+                  padding: "30px 26px",
+                  textAlign: "center",
+                  boxShadow: "0 28px 70px rgba(0,0,0,0.6)",
+                  boxSizing: "border-box"
+                }}>
+                  <div style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: "50%",
+                    background: "rgba(232,146,58,0.2)",
+                    border: "2px solid #e8923a",
+                    color: "#e8923a",
+                    display: "grid",
+                    placeItems: "center",
+                    margin: "0 auto 16px",
+                    fontSize: 26
+                  }}>
+                    ✓
+                  </div>
+
+                  <div style={{ color: "#e8923a", fontSize: 11, fontWeight: 800, letterSpacing: 2, marginBottom: 8 }}>
+                    CONFIRM PAYMENT
+                  </div>
+                  
+                  <h2 style={{ color: "white", fontSize: 23, margin: "0 0 8px" }}>
+                    Ready to pay?
+                  </h2>
+                  
+                  <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, lineHeight: 1.5, margin: "0 0 20px" }}>
+                    Please review your payment amount before confirming.
+                  </p>
+
+                  <div style={{
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: 14,
+                    padding: "16px 18px",
+                    marginBottom: 22,
+                    textAlign: "left"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 8 }}>
+                      <span style={{ color: "rgba(255,255,255,0.55)" }}>Payment Method</span>
+                      <span style={{ color: "white", fontWeight: 700 }}>Visa Card</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10, marginTop: 6 }}>
+                      <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>Total Amount</span>
+                      <span style={{ color: "#e8923a", fontSize: 24, fontWeight: 800 }}>
+                        LKR {Number(amount).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmModal(false)}
+                      disabled={loading}
+                      style={{
+                        flex: 1,
+                        padding: "13px 12px",
+                        background: "rgba(255,255,255,0.08)",
+                        color: "white",
+                        border: "1px solid rgba(255,255,255,0.16)",
+                        borderRadius: 12,
+                        fontWeight: 700,
+                        fontSize: 14,
+                        cursor: loading ? "not-allowed" : "pointer"
+                      }}
+                    >
+                      Go Back
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={handleConfirmPay}
+                      disabled={loading}
+                      style={{
+                        flex: 1.35,
+                        padding: "13px 12px",
+                        background: "#e8923a",
+                        color: "#0a261a",
+                        border: "none",
+                        borderRadius: 12,
+                        fontWeight: 800,
+                        fontSize: 14,
+                        cursor: loading ? "wait" : "pointer",
+                        boxShadow: "0 8px 20px rgba(232,146,58,0.25)"
+                      }}
+                    >
+                      {loading ? "Processing..." : "Confirm Payment"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -463,7 +576,7 @@ export default function MockCheckout({ theme = "dark" }) {
 
             <div style={{ display: "grid", gap: 12 }}>
               <button
-                onClick={handleDownloadReceipt}
+                onClick={handleOpenReceipt}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   width: "100%", background: "#0e8a83", color: "white", border: "none",
@@ -476,7 +589,7 @@ export default function MockCheckout({ theme = "dark" }) {
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                Download Receipt PDF
+                Open Receipt PDF
               </button>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>

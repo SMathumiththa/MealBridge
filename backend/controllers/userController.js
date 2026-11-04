@@ -1,3 +1,4 @@
+const BASE_URL = process.env.API_PUBLIC_URL || process.env.BACKEND_URL || 'http://localhost:5000';
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -423,7 +424,7 @@ exports.updateDonationSettings = async (req, res) => {
       const { isCloudinaryConfigured } = require("../config/cloudinary");
       user.donationSettings.qrCodeImage = isCloudinaryConfigured
         ? req.file.path
-        : `http://localhost:5000/uploads/${req.file.filename}`;
+        : `${BASE_URL}/uploads/${req.file.filename}`;
     }
 
     await user.save();
@@ -449,7 +450,7 @@ exports.updateProfile = async (req, res) => {
       if (isCloudinaryConfigured) {
         profileImage = req.file.path;
       } else {
-        profileImage = `http://localhost:5000/uploads/${req.file.filename}`;
+        profileImage = `${BASE_URL}/uploads/${req.file.filename}`;
       }
     }
 

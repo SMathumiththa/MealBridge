@@ -128,7 +128,7 @@ const updateStatus = async (req, res) => {
 
     const transitionMap = {
       pending: ["accepted", "rejected"],
-      accepted: ["picked_up", "completed", "rejected"],
+      accepted: ["picked_up"],
       picked_up: ["completed"],
       rejected: [],
       completed: [],
@@ -138,6 +138,30 @@ const updateStatus = async (req, res) => {
         success: false,
         message: `Invalid transition from ${request.status} to ${status}`,
       });
+    }
+
+    // Keep each workflow step owned by the role responsible for it. Admins
+    // are exempt from these role-ownership checks for dashboard corrections.
+    if (req.user.role !== "admin") {
+      const allowedRoles = {
+        pending: {
+          accepted: ["donor"],
+          rejected: ["donor"],
+        },
+        accepted: {
+          picked_up: ["ngo", "volunteer"],
+        },
+        picked_up: {
+          completed: ["ngo", "volunteer"],
+        },
+      };
+      const rolesForTransition = allowedRoles[request.status]?.[status] || [];
+      if (!rolesForTransition.includes(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: `The ${req.user.role} role cannot change a request from ${request.status} to ${status}`,
+        });
+      }
     }
 
     if (request.status === status) {
@@ -159,7 +183,7 @@ const updateStatus = async (req, res) => {
           ...request.foodId.statusHistory,
           {
             status: 'picked_up',
-            note: `Picked up by donor ${req.user.name || req.user._id}`,
+            note: `Picked up by volunteer ${req.user.name || req.user._id}`,
             changedBy: req.user._id,
             changedAt: new Date(),
           }
@@ -199,9 +223,9 @@ const updateStatus = async (req, res) => {
         const pointsAwarded = request.qty * 10; // 10 points per unit of food
         const donorUser = await User.findById(request.foodId.donor);
         if (donorUser) {
-          donorUser.points += pointsAwarded;
-          donorUser.totalDonations += 1;
-          
+          donorUser.points = (donorUser.points || 0) + pointsAwarded;
+          donorUser.totalDonations = (donorUser.totalDonations || 0) + 1;
+
           // Badge Logic
           if (donorUser.points >= 1000) donorUser.badge = "Platinum";
           else if (donorUser.points >= 500) donorUser.badge = "Gold";
@@ -215,8 +239,8 @@ const updateStatus = async (req, res) => {
         if (request.volunteerId) {
           const volunteerUser = await User.findById(request.volunteerId);
           if (volunteerUser) {
-            volunteerUser.points += 50; // Flat 50 points per successful delivery
-            volunteerUser.totalDonations += 1; // Assuming totalDonations tracks completed tasks
+            volunteerUser.points = (volunteerUser.points || 0) + 50;
+            volunteerUser.totalDonations = (volunteerUser.totalDonations || 0) + 1;
             
             // Badge Logic
             if (volunteerUser.points >= 1000) volunteerUser.badge = "Platinum";
@@ -238,9 +262,14 @@ const updateStatus = async (req, res) => {
       }
     }
 
-    const recipientIds = req.user.role === 'volunteer'
-      ? [request.foodId.donor, request.ngoId]
-      : [req.user.role === 'ngo' ? request.foodId.donor : request.ngoId];
+    const recipientSet = new Set();
+    const donorId = request.foodId?.donor?._id ? request.foodId.donor._id.toString() : request.foodId?.donor?.toString();
+    if (donorId && donorId !== req.user._id.toString()) recipientSet.add(donorId);
+    const ngoId = request.ngoId?._id ? request.ngoId._id.toString() : request.ngoId?.toString();
+    if (ngoId && ngoId !== req.user._id.toString()) recipientSet.add(ngoId);
+    const volId = request.volunteerId?._id ? request.volunteerId._id.toString() : request.volunteerId?.toString();
+    if (volId && volId !== req.user._id.toString()) recipientSet.add(volId);
+    const recipientIds = Array.from(recipientSet);
     const notifs = await Notification.insertMany(recipientIds.map(recipientId => ({
       recipientId,
       message: `Status of food request for '${request.foodId.foodName}' updated to ${status}`,

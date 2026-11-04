@@ -2,6 +2,7 @@ const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
 const http = require("http");
 const { Server } = require("socket.io");
 
@@ -14,7 +15,12 @@ const connectDB = require("./config/db");
 const app = express();
 
 const frontendOrigins = [
-  process.env.FRONTEND_URL || "http://localhost:5173",
+  ...(process.env.FRONTEND_URL || "http://localhost:5173")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+  `http://localhost:${process.env.PORT || 5000}`,
+  `http://127.0.0.1:${process.env.PORT || 5000}`,
   "http://localhost:4174"
 ];
 
@@ -47,14 +53,54 @@ app.use("/api/money-donations", require("./routes/moneyDonationRoutes"));
 app.use("/api/payment", require("./routes/paymentRoutes"));
 app.use("/api/messages", require("./routes/messageRoutes"));
 
+// Serve the production frontend from the same origin when it has been built.
+const frontendDist = path.join(__dirname, "..", "frontend", "dist");
+const adminHtml = path.join(frontendDist, "admin", "admin.html");
+if (fs.existsSync(frontendDist)) {
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/assets/") || req.path === "/favicon.svg") {
+      res.setHeader("Cache-Control", "no-store");
+    }
+    next();
+  });
+  app.use(express.static(frontendDist));
+  app.use((req, res, next) => {
+    if (req.method === "GET" && req.path.startsWith("/admin") && fs.existsSync(adminHtml)) {
+      return res.sendFile(adminHtml);
+    }
+
+    if (req.method === "GET" && !req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
+      const indexHtml = path.join(frontendDist, "index.html");
+      if (fs.existsSync(indexHtml)) return res.sendFile(indexHtml);
+    }
+
+    return next();
+  });
+}
+
 // ================= TEST ROUTE =================
 app.get("/", (req, res) => {
+  const indexHtml = path.join(frontendDist, "index.html");
+  if (fs.existsSync(indexHtml)) return res.sendFile(indexHtml);
   res.json({ success: true, message: "Food Donation Backend Running" });
 });
 
 // ================= 404 HANDLER =================
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
+});
+
+app.use((error, req, res, next) => {
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  if (error.name === "MulterError" || error.message?.startsWith("Invalid file type")) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+
+  console.error("Unhandled API error:", error);
+  return res.status(500).json({ success: false, message: "Internal server error" });
 });
 
 // ================= SERVER START & SOCKET.IO =================

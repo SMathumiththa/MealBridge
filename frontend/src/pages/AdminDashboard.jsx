@@ -17,6 +17,14 @@ import {
   PieChart, Pie, Cell
 } from "recharts";
 
+const getDocumentUrl = (value) => {
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  const apiUrl = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000/api`;
+  const backendOrigin = apiUrl.replace(/\/api\/?$/, "");
+  return `${backendOrigin}/uploads/${value.split(/[\\/]/).pop()}`;
+};
+
 export default function AdminDashboard({ theme = "dark" }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -445,9 +453,9 @@ export default function AdminDashboard({ theme = "dark" }) {
   const statusColors = { active: "#4CAF50", pending: COLORS.amber, suspended: "#e74c3c" };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", position: "relative", zIndex: 1, background: isLight ? "#f4f7fb" : "transparent", color: contentTextColor }}>
+    <div className="dashboard-layout admin-dashboard-layout" style={{ display: "flex", minHeight: "100vh", position: "relative", zIndex: 1, background: isLight ? "#f4f7fb" : "transparent", color: contentTextColor }}>
       <Sidebar role="admin" activePage={page} onNav={setPage} onLogout={onLogout} user={user} theme={theme} />
-      <div style={{ flex: 1, padding: "36px 40px", overflowY: "auto", background: contentBg }}>
+      <div className="dashboard-main admin-dashboard-main" style={{ flex: 1, padding: "36px 40px", overflowY: "auto", background: contentBg }}>
         
         {/* Animated Notification Bell Top Right */}
         <div 
@@ -501,7 +509,7 @@ export default function AdminDashboard({ theme = "dark" }) {
         {page === "adminHome" && (
           <div>
             <div style={{ marginBottom: 28 }}>
-              <h2 style={{ color: "white", fontSize: 28, margin: "0 0 6px" }}>{t("common.adminOverview")} ⚙️</h2>
+              <h2 style={{ color: "white", fontSize: 28, margin: "0 0 6px" }}>{t("common.adminOverview")}</h2>
               <p style={{ color: "rgba(255,255,255,0.7)", margin: 0 }}>MealBridge Platform Dashboard · {new Date().toLocaleDateString()}</p>
             </div>
 
@@ -608,7 +616,7 @@ export default function AdminDashboard({ theme = "dark" }) {
         )}
         {page === "users" && (
           <div>
-            <h2 style={{ color: "white", fontSize: 26, margin: "0 0 20px" }}>👥 {t("common.userManagement")}</h2>
+            <h2 style={{ color: "white", fontSize: 26, margin: "0 0 20px" }}>{t("common.userManagement")}</h2>
             
             <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
               <input 
@@ -721,7 +729,7 @@ export default function AdminDashboard({ theme = "dark" }) {
         )}
         {page === "analytics" && (
           <div>
-            <h2 style={{ color: "white", fontSize: 26, margin: "0 0 24px" }}>📊 Analytics</h2>
+            <h2 style={{ color: "white", fontSize: 26, margin: "0 0 24px" }}>Analytics</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24 }}>
               {[
                 { label: "Meals This Week", val: `${stats?.weeklyDonationsCount || 0}`, icon: "📅" },
@@ -796,9 +804,22 @@ export default function AdminDashboard({ theme = "dark" }) {
                     <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>LKR {r.amountNeeded}</span>
                     <span style={{ fontSize: 12, color: r.status === "approved" ? COLORS.mint : r.status === "rejected" ? "#e74c3c" : COLORS.amber, fontWeight: 600, textTransform: "capitalize" }}>● {r.status}</span>
                     <div style={{ fontSize: 14, display: "flex", flexDirection: "row", flexWrap: "nowrap", overflowX: "auto", gap: 8, fontWeight: 500, paddingBottom: 4 }}>
-                      <a href="#" onClick={(e) => { e.preventDefault(); setViewDocUrl(r.documents?.needStatement?.startsWith('http') ? r.documents.needStatement : `http://${window.location.hostname}:5000/uploads/${r.documents?.needStatement?.split(/[\\/]/).pop()}`); }} style={{color: COLORS.mint, textDecoration: "none", background: "rgba(46, 204, 113, 0.1)", padding: "6px 12px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap"}}>📄 Need Statement</a>
-                      <a href="#" onClick={(e) => { e.preventDefault(); setViewDocUrl(r.documents?.registrationCertificate?.startsWith('http') ? r.documents.registrationCertificate : `http://${window.location.hostname}:5000/uploads/${r.documents?.registrationCertificate?.split(/[\\/]/).pop()}`); }} style={{color: COLORS.mint, textDecoration: "none", background: "rgba(46, 204, 113, 0.1)", padding: "6px 12px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap"}}>📄 Registration</a>
-                      <a href="#" onClick={(e) => { e.preventDefault(); setViewDocUrl(r.documents?.bankDetails?.startsWith('http') ? r.documents.bankDetails : `http://${window.location.hostname}:5000/uploads/${r.documents?.bankDetails?.split(/[\\/]/).pop()}`); }} style={{color: COLORS.mint, textDecoration: "none", background: "rgba(46, 204, 113, 0.1)", padding: "6px 12px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap"}}>📄 Bank Details</a>
+                      {[
+                        ["needStatement", "Need Statement"],
+                        ["registrationCertificate", "Registration"],
+                        ["bankDetails", "Bank Details"],
+                        ["usageReport", "Usage Report"]
+                      ].map(([key, label]) => {
+                        const url = getDocumentUrl(r.documents?.[key]);
+                        return url ? (
+                          <button key={key} type="button" onClick={() => setViewDocUrl(url)} style={{ color: COLORS.mint, background: "rgba(46, 204, 113, 0.1)", border: "none", padding: "6px 12px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", cursor: "pointer" }}>
+                            📄 {label}
+                          </button>
+                        ) : null;
+                      })}
+                      {!r.documents?.needStatement && !r.documents?.registrationCertificate && !r.documents?.bankDetails && !r.documents?.usageReport && (
+                        <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>No documents uploaded</span>
+                      )}
                     </div>
                     <div>
                       <button 
@@ -841,7 +862,7 @@ export default function AdminDashboard({ theme = "dark" }) {
         )}
         {page === "requests" && (
           <div>
-            <h2 style={{ color: "white", fontSize: 26, margin: "0 0 20px" }}>🍱 Food Approval</h2>
+            <h2 style={{ color: "white", fontSize: 26, margin: "0 0 20px" }}>Food Approval</h2>
 
             {/* Food Donations Table */}
             {loading ? (
@@ -904,7 +925,7 @@ export default function AdminDashboard({ theme = "dark" }) {
         )}
         {page === "feedbacks" && (
           <div>
-            <h2 style={{ color: "white", fontSize: 26, margin: "0 0 20px" }}>⭐ Feedback & Ratings</h2>
+            <h2 style={{ color: "white", fontSize: 26, margin: "0 0 20px" }}>Feedback & Ratings</h2>
             {loading ? (
               <div style={{ textAlign: "center", padding: "40px", color: "rgba(255,255,255,0.7)" }}>Loading feedbacks...</div>
             ) : (feedbacks.length > 0 || moneyFeedbacks.length > 0) ? (
@@ -997,7 +1018,7 @@ export default function AdminDashboard({ theme = "dark" }) {
         )}
         {page === "notifications" && (
           <div>
-            <h2 style={{ color: "white", fontSize: 26, margin: "0 0 20px" }}>🔔 Notifications</h2>
+            <h2 style={{ color: "white", fontSize: 26, margin: "0 0 20px" }}>Notifications</h2>
             
             <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, padding: "20px", marginBottom: "24px" }}>
                <h3 style={{ color: "white", fontSize: 16, marginTop: 0, marginBottom: 16 }}>Send New Notification</h3>
@@ -1018,6 +1039,7 @@ export default function AdminDashboard({ theme = "dark" }) {
                     <option value="all">All Users</option>
                     <option value="donor">Donors</option>
                     <option value="ngo">NGOs</option>
+                    <option value="volunteer">Volunteers</option>
                   </select>
                   <button
                     type="submit"
@@ -1074,7 +1096,7 @@ export default function AdminDashboard({ theme = "dark" }) {
               ) : (
                 <>
                   {/* Food Donations */}
-                  <h3 style={{ color: COLORS.mint, marginBottom: 16 }}>🍱 Food Donations</h3>
+                  <h3 style={{ color: COLORS.mint, marginBottom: 16 }}>Food Donations</h3>
                   {donations.length > 0 ? (
                     <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflow: "hidden", marginBottom: 32 }}>
                       <div style={{ display: "grid", gridTemplateColumns: "20% 15% 10% 10% 15% 15% 15%", gap: 0, padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, textAlign: "left" }}>
@@ -1116,7 +1138,7 @@ export default function AdminDashboard({ theme = "dark" }) {
                   )}
 
                   {/* Fund Donations */}
-                  <h3 style={{ color: COLORS.amber, marginBottom: 16 }}>💰 Fund Donations</h3>
+                  <h3 style={{ color: COLORS.amber, marginBottom: 16 }}>Fund Donations</h3>
                   {moneyDonations.length > 0 ? (
                     <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflow: "hidden" }}>
                       <div style={{ display: "grid", gridTemplateColumns: "18% 24% 12% 12% 12% 12% 10%", gap: 0, padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, textAlign: "left" }}>
@@ -1172,7 +1194,7 @@ export default function AdminDashboard({ theme = "dark" }) {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setSelectedDonation(null)}>
           <div style={{ background: "linear-gradient(160deg, #1a3a2a, #152a20)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 20, padding: 32, width: "100%", maxWidth: 700, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <h3 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "white" }}>🍱 Food Donation Details</h3>
+              <h3 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "white" }}>Food Donation Details</h3>
               <button onClick={() => setSelectedDonation(null)} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, color: "white", width: 32, height: 32, cursor: "pointer", fontSize: 16 }}>✕</button>
             </div>
 
@@ -1363,7 +1385,7 @@ export default function AdminDashboard({ theme = "dark" }) {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setSelectedDonor(null)}>
           <div style={{ background: "linear-gradient(160deg, #1a3a2a, #152a20)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 20, padding: 32, width: "100%", maxWidth: 700, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <h3 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "white" }}>💰 Donor Profile</h3>
+              <h3 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "white" }}>Donor Profile</h3>
               <button onClick={() => setSelectedDonor(null)} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, color: "white", width: 32, height: 32, cursor: "pointer", fontSize: 16 }}>✕</button>
             </div>
 
@@ -1441,7 +1463,7 @@ export default function AdminDashboard({ theme = "dark" }) {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setSelectedMoneyDonation(null)}>
           <div style={{ background: "linear-gradient(160deg, #1a3a2a, #152a20)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 20, padding: 32, width: "100%", maxWidth: 600, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <h3 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "white" }}>💰 Fund Donation Details</h3>
+              <h3 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "white" }}>Fund Donation Details</h3>
               <button onClick={() => setSelectedMoneyDonation(null)} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, color: "white", width: 32, height: 32, cursor: "pointer", fontSize: 16 }}>✕</button>
             </div>
 
@@ -1534,7 +1556,7 @@ export default function AdminDashboard({ theme = "dark" }) {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setSelectedNgo(null)}>
           <div style={{ background: "linear-gradient(160deg, #1a3a2a, #152a20)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 20, padding: 32, width: "100%", maxWidth: 700, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <h3 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "white" }}>🏢 NGO Profile</h3>
+              <h3 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "white" }}>NGO Profile</h3>
               <button onClick={() => setSelectedNgo(null)} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, color: "white", width: 32, height: 32, cursor: "pointer", fontSize: 16 }}>✕</button>
             </div>
 
@@ -1665,5 +1687,3 @@ export default function AdminDashboard({ theme = "dark" }) {
     </div>
   );
 }
-
-

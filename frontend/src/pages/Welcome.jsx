@@ -3,7 +3,6 @@ import { Link, NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Footer from "../components/Footer";
 import BrushStepCards from "../components/BrushStepCards";
-import ReachingHandsDecoration from "../components/ReachingHandsDecoration";
 
 const steps = [
   {
@@ -45,7 +44,6 @@ export default function Welcome({ theme }) {
     <div className={`public-site public-home-site ${isLight ? "public-light" : "public-dark"}`}>
       <header className="public-nav">
         <Link to="/" className="public-brand">
-          <span className="public-brand-mark">M</span>
           <span>Meal<span style={{ color: "#19a85a" }}>Bridge</span></span>
         </Link>
         <nav className="public-links" aria-label="Primary navigation">
@@ -64,25 +62,25 @@ export default function Welcome({ theme }) {
 
       <main>
         <section className="public-hero">
-          <div className="hero-copy">
-            <p className="public-kicker"><span>✦</span> {t("common.foodWithPurpose")}</p>
-            <h1>{t("common.goodFood")}<br /><em>{t("common.goodPeople")}</em><br />{t("common.betterTogether")}</h1>
-            <p className="hero-description">
+          <div className="hero-copy hero-reveal">
+            <p className="public-kicker hero-reveal-item"><span>✦</span> {t("common.foodWithPurpose")}</p>
+            <h1 className="hero-reveal-item">{t("common.goodFood")}<br /><em>{t("common.goodPeople")}</em><br />{t("common.betterTogether")}</h1>
+            <p className="hero-description hero-reveal-item">
               MealBridge connects surplus food with people and communities who need it most.
               Share a meal, support a neighbour, and help us build a world with less waste.
             </p>
-            <div className="hero-actions">
+            <div className="hero-actions hero-reveal-item">
               <Link className="public-button" to="/register">{t("common.startImpact")} <span>↗</span></Link>
               <a className="text-link" href="#how-it-works">{t("common.seeHow")} <span>↓</span></a>
             </div>
-            <div className="hero-proof">
+            <div className="hero-proof hero-reveal-item">
               <div className="avatar-stack">
                 <span>R</span><span>A</span><span>M</span><span>+</span>
               </div>
               <p><strong>2,400+ people</strong><br />are already sharing good food</p>
             </div>
           </div>
-          <div className="hero-visual">
+          <div className="hero-visual hero-visual-animated">
             <div className="hero-image-frame">
               <img src="https://images.unsplash.com/photo-1593113630400-ea4288922497?auto=format&fit=crop&w=1200&q=85" alt="Food donations prepared for a community" />
             </div>
@@ -92,7 +90,7 @@ export default function Welcome({ theme }) {
           </div>
         </section>
 
-        <section className="impact-strip" aria-label="MealBridge impact">
+        <section className="impact-strip impact-strip-animated" aria-label="MealBridge impact">
           <div><strong>48k+</strong><span>meals shared</span></div>
           <div><strong>120+</strong><span>community partners</span></div>
           <div><strong>2.4k</strong><span>active members</span></div>
@@ -100,7 +98,7 @@ export default function Welcome({ theme }) {
         </section>
 
         {/* Balanced 2-Column Section Filling the Empty Space Responsively */}
-        <section className="story-section" id="how-it-works">
+        <section className="story-section section-animated" id="how-it-works">
           <div className="section-heading">
             <p className="public-kicker">Simple, human, local</p>
             <h2>Small actions can<br /><em>fill a table.</em></h2>

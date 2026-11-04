@@ -1,5 +1,3 @@
-import { COLORS } from "../theme";
-
 export default function Select({ label, options, value, onChange, theme }) {
   const isLight = theme === "light" || (typeof document !== "undefined" && document.body.classList.contains("light-theme"));
 

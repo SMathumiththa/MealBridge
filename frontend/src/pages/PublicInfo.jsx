@@ -202,7 +202,6 @@ export default function PublicInfo({ type, theme }) {
     <div className={`public-site public-info-site public-info-${type} ${isLight ? "public-light" : "public-dark"}`}>
       <header className="public-nav">
         <Link to="/" className="public-brand">
-          <span className="public-brand-mark">M</span>
           <span>Meal<span style={{ color: "#19a85a" }}>Bridge</span></span>
         </Link>
         <nav className="public-links" aria-label="Primary navigation">

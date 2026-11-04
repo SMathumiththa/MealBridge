@@ -102,7 +102,8 @@ export default function Login({ theme = "dark", isAdminPortal = false }) {
       } else if (isAdminMode) {
         navigate("/admin");
       } else {
-        window.location.href = import.meta.env.VITE_ADMIN_URL || "http://localhost:4174/";
+        window.location.href = import.meta.env.VITE_ADMIN_URL ||
+          (import.meta.env.PROD ? "/admin/" : "http://localhost:4174/");
       }
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");

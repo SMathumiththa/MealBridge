@@ -9,9 +9,9 @@ import LocationSelector from "../components/LocationSelector";
 import RatingStars from "../components/RatingStars";
 import FeedbackForm from "../components/FeedbackForm";
 import { getDonations } from "../api/donation";
-import { verifyAuth } from "../api/auth";
+import { verifyAuth, updateDonationSettings } from "../api/auth";
 import { createRequest, getRequests, updateRequest } from "../api/request";
-import { getNotifications } from "../api/notification";
+import { getNotifications, markNotificationAsRead } from "../api/notification";
 import { getMySubmittedFeedbacks, getMyReceivedFeedbacks } from "../api/feedback";
 import { createMoneyRequest, getMoneyRequests } from "../api/moneyRequest";
 import { getNgoMoneyDonations, confirmPendingDonation, cancelPendingDonation, METHOD_LABELS } from "../api/moneyDonation";
@@ -59,6 +59,7 @@ function Modal({ open, onClose, title, children }) {
 }
 
 function DonationCard({ donation, onRequest, onViewDetails, requested }) {
+  const { t } = useTranslation();
   const isVeg = donation.foodType === "veg";
   const typeLabel = isVeg ? "Veg" : "Non-Veg";
   
@@ -278,7 +279,7 @@ function DashboardPage({ availableDonations, requests, onNav, user, fundDonation
       {/* Recent Money Donations Feed */}
       {fundDonations && fundDonations.length > 0 && (
         <div style={{ background: "rgba(126, 200, 160, 0.04)", border: "1px solid rgba(126, 200, 160, 0.15)", borderRadius: 18, padding: "22px", marginTop: 22 }}>
-          <h3 style={{ color: "white", fontSize: 18, marginTop: 0, marginBottom: 14 }}>💸 Recent Money Donations</h3>
+          <h3 style={{ color: "white", fontSize: 18, marginTop: 0, marginBottom: 14 }}>Recent Money Donations</h3>
           {fundDonations.slice(0, 3).map(don => (
             <div key={don._id} style={{ background: "rgba(126, 200, 160, 0.08)", border: "1px solid rgba(126, 200, 160, 0.24)", borderRadius: 18, padding: "18px 20px", marginBottom: 14, boxShadow: "0 16px 50px rgba(0,0,0,0.08)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -350,7 +351,7 @@ function BrowsePage({ donations, requests, onRequest, user, theme }) {
 
   return (
     <div>
-      <h2 style={{ color: "white", fontSize: 26, margin: "0 0 22px" }}>🔍 {t("ngo.browseFood", { defaultValue: "Browse Available Food" })}</h2>
+      <h2 style={{ color: "white", fontSize: 26, margin: "0 0 22px" }}>{t("ngo.browseFood", { defaultValue: "Browse Available Food" })}</h2>
 
       {/* Search & Filters */}
       <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 16, padding: "20px", marginBottom: 22 }}>
@@ -501,7 +502,7 @@ function MyRequestsPage({ requests, onPickup, user }) {
 
   return (
     <div>
-      <h2 style={{ color: "white", fontSize: 26, margin: "0 0 22px" }}>📋 My Requests</h2>
+      <h2 style={{ color: "white", fontSize: 26, margin: "0 0 22px" }}>My Requests</h2>
       <div style={{ display: "flex", gap: 8, marginBottom: 22, flexWrap: "wrap" }}>
         {[["all", "All"], ["pending", "Pending"], ["accepted", "Accepted"], ["completed", "Completed"]].map(([val, label]) => (
           <button key={val} onClick={() => setFilter(val)} style={{ padding: "9px 20px", borderRadius: 22, border: `1px solid ${filter === val ? "rgba(126, 200, 160, 0.5)" : "rgba(255,255,255,0.15)"}`, background: filter === val ? "rgba(126, 200, 160, 0.2)" : "rgba(255,255,255,0.05)", color: filter === val ? COLORS.mint : "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer", fontWeight: filter === val ? 600 : 400, transition: "all 0.15s" }}>
@@ -600,7 +601,7 @@ function PickupsPage({ requests, feedbacks, onRateDonor }) {
   const completed = requests.filter(r => r.status === "completed");
   return (
     <div>
-      <h2 style={{ color: "white", fontSize: 26, margin: "0 0 22px" }}>✅ Pickup History</h2>
+      <h2 style={{ color: "white", fontSize: 26, margin: "0 0 22px" }}>Pickup History</h2>
       <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
         <StatCard icon="🏆" label="Total Pickups" value={completed.length} color={COLORS.amberLight} />
         <StatCard icon="🍱" label="Meals Received" value={completed.reduce((a, r) => a + parseInt(r.qty || 0), 0)} color={COLORS.mint} />
@@ -647,6 +648,7 @@ function ProfilePage({ user, setUser }) {
   const [officeLoc, setOfficeLoc] = useState(user?.officeLocation || null);
   const [profileImage, setProfileImage] = useState(user?.profileImage || null);
   const [imageFile, setImageFile] = useState(null);
+  const [qrCodeFile, setQrCodeFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const fileRef = useRef(null);
 
@@ -678,13 +680,21 @@ function ProfilePage({ user, setUser }) {
       
       const { updateProfile } = await import("../api/auth");
       const res = await updateProfile(formData);
+      let updatedUser = res.data;
+      if (qrCodeFile) {
+        const qrData = new FormData();
+        qrData.append("qrCodeImage", qrCodeFile);
+        const qrRes = await updateDonationSettings(qrData);
+        updatedUser = { ...updatedUser, donationSettings: qrRes.data };
+      }
       
-      localStorage.setItem("user", JSON.stringify(res.data));
-      if (setUser) setUser(res.data);
-      setProfileImage(res.data.profileImage);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      if (setUser) setUser(updatedUser);
+      setProfileImage(updatedUser.profileImage);
       // update officeLoc from response if provided
       setOfficeLoc(res.data.officeLocation || officeLoc);
       setImageFile(null);
+      setQrCodeFile(null);
       setEdit(false); 
       setSaved(true); 
       setTimeout(() => setSaved(false), 2500); 
@@ -723,7 +733,7 @@ function ProfilePage({ user, setUser }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <h2 style={{ color: "white", fontSize: 26, margin: 0 }}>🏢 NGO Profile</h2>
+        <h2 style={{ color: "white", fontSize: 26, margin: 0 }}>NGO Profile</h2>
         {!edit && <Btn variant="secondary" size="sm" onClick={() => setEdit(true)}>Edit Profile</Btn>}
       </div>
 
@@ -780,6 +790,18 @@ function ProfilePage({ user, setUser }) {
               <Btn variant="secondary" onClick={() => { setEdit(false); setProfileImage(user?.profileImage || null); setImageFile(null); }} style={{ flex: 1 }} disabled={loading}>Cancel</Btn>
               <Btn style={{background: COLORS.mint, color: COLORS.forest, flex: 1}} onClick={handleSave} disabled={loading}>{loading ? "Saving..." : "Save Changes ✓"}</Btn>
             </div>
+            <div style={{ gridColumn: "1/-1", background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.18)", borderRadius: 16, padding: 16 }}>
+              <label style={{ display: "block", color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                QR Payment Code (Optional)
+              </label>
+              <input type="file" accept="image/*" onChange={e => setQrCodeFile(e.target.files?.[0] || null)} style={{ width: "100%", color: "white" }} />
+              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 8 }}>
+                Uploading a QR code will show QR Payment to donors. Without it, the option stays hidden.
+              </div>
+              {user?.donationSettings?.qrCodeImage && !qrCodeFile && (
+                <div style={{ color: COLORS.mint, fontSize: 12, marginTop: 8 }}>Current QR code is uploaded.</div>
+              )}
+            </div>
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -800,13 +822,18 @@ function ProfilePage({ user, setUser }) {
 function NotificationsPage({ notifications, setNotifications }) {
   return (
     <div>
-      <h2 style={{ color: "white", fontSize: 26, margin: "0 0 4px" }}>🔔 Notifications</h2>
+      <h2 style={{ color: "white", fontSize: 26, margin: "0 0 4px" }}>Notifications</h2>
       <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, marginBottom: 20 }}>{notifications.filter(m => !m.read).length} unread notifications</p>
       
       {notifications.length === 0 ? <p style={{ color: "rgba(255,255,255,0.4)" }}>No notifications yet.</p> : null}
       
       {notifications.map(m => (
-        <div key={m._id} onClick={() => setNotifications(notifications.map(x => x._id === m._id ? { ...x, read: true } : x))} style={{
+        <div key={m._id} onClick={() => {
+          if (!m.read) {
+            setNotifications(notifications.map(x => x._id === m._id ? { ...x, read: true } : x));
+            markNotificationAsRead(m._id).catch(err => console.error("Error marking notification as read", err));
+          }
+        }} style={{
           background: m.read ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.1)",
           border: `1px solid ${m.read ? "rgba(255,255,255,0.15)" : "rgba(126, 200, 160, 0.4)"}`,
           borderRadius: 12, padding: "14px 16px", marginBottom: 10,
@@ -868,7 +895,7 @@ function FeedbacksPage({ completedRequests, onLoadFeedbacks, refreshTrigger, act
 
   return (
     <div>
-      <h2 style={{ color: "white", fontSize: 26, margin: "0 0 22px" }}>⭐ Feedback & Ratings</h2>
+      <h2 style={{ color: "white", fontSize: 26, margin: "0 0 22px" }}>Feedback & Ratings</h2>
 
       {/* Stats Cards */}
       <div style={{ display: "flex", gap: 14, marginBottom: 28, flexWrap: "wrap" }}>
@@ -1137,7 +1164,7 @@ function FundRequestsPage({ fundRequests, fundDonations, reload, user }) {
   return (
     <div style={{ display: "grid", gap: 24, maxWidth: 980, margin: "0 auto" }}>
       <div style={{ textAlign: "center" }}>
-        <h2 style={{ color: "white", fontSize: 30, margin: 0 }}>💸 Fund Requests</h2>
+        <h2 style={{ color: "white", fontSize: 30, margin: 0 }}>Fund Requests</h2>
         <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 15, margin: "10px auto 0", maxWidth: 600 }}>
           Request funds with verified documents and keep your NGO operations transparent and easy to manage.
         </p>
@@ -1178,6 +1205,14 @@ function FundRequestsPage({ fundRequests, fundDonations, reload, user }) {
                 <div style={{ background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.18)", borderRadius: 16, padding: "16px 14px" }}>
                   <input type="file" accept=".pdf,image/*" onChange={e => handleFile(e, "bankDetails")} required style={{ width: "100%", color: "white", background: "transparent", border: "none", outline: "none" }} />
                   {files.bankDetails && <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 8 }}>{files.bankDetails.name}</div>}
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gap: 8 }}>
+                <label style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: 600 }}>Registration Certificate (Optional)</label>
+                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.18)", borderRadius: 16, padding: "16px 14px" }}>
+                  <input type="file" accept=".pdf,image/*" onChange={e => handleFile(e, "registrationCertificate")} style={{ width: "100%", color: "white", background: "transparent", border: "none", outline: "none" }} />
+                  {files.registrationCertificate && <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 8 }}>{files.registrationCertificate.name}</div>}
                 </div>
               </div>
 
@@ -1346,7 +1381,9 @@ export default function NGODashboard({ theme = "dark" }) {
       ]);
       
       const requestsData = requestsRes.data || [];
-      const requestedIds = requestsData.map(r => r.foodId?._id?.toString());
+      const requestedIds = requestsData
+        .filter(r => ["pending", "accepted", "picked_up"].includes(r.status))
+        .map(r => r.foodId?._id?.toString());
       const filteredDonations = (donationsRes.data || []).filter(d => !requestedIds.includes(d._id?.toString()));
 
       setAvailableDonations(filteredDonations);
@@ -1363,6 +1400,8 @@ export default function NGODashboard({ theme = "dark" }) {
   };
 
   useEffect(() => {
+    let intervalId;
+
     const verifyAndLoad = async () => {
       const token = localStorage.getItem("token");
       const userStr = localStorage.getItem("user");
@@ -1399,13 +1438,17 @@ export default function NGODashboard({ theme = "dark" }) {
       }
 
       loadData();
-      let intervalId = setInterval(() => {
-        getNotifications().then(res => setNotifications(res.data || [])).catch(()=>null);
+      intervalId = setInterval(() => {
+        getNotifications()
+          .then(res => setNotifications(res.data || []))
+          .catch(err => console.error("Error polling notifications", err));
       }, 10000);
-      return () => clearInterval(intervalId);
     };
 
     verifyAndLoad();
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [navigate]);
 
   useEffect(() => {

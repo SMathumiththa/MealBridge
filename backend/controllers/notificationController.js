@@ -24,4 +24,23 @@ const markAsRead = async (req, res) => {
   }
 };
 
-module.exports = { getNotifications, markAsRead };
+// Mark one notification as read for the logged-in user.
+const markOneAsRead = async (req, res) => {
+  try {
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, recipientId: req.user._id },
+      { $set: { read: true } },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ success: false, message: "Notification not found" });
+    }
+
+    res.json({ success: true, data: notification });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server Error", error: error.message });
+  }
+};
+
+module.exports = { getNotifications, markAsRead, markOneAsRead };

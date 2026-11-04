@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import toast from "react-hot-toast";
 
 const SRI_LANKA_LOCATIONS = {
   "COLOMBO": [
@@ -116,33 +117,58 @@ export default function LocationSelector({
 
   const handleGPSDetect = () => {
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
+      toast.error(t("common.geoNotSupported", { defaultValue: "Geolocation is not supported by your browser." }));
       return;
     }
     setDetecting(true);
     navigator.geolocation.getCurrentPosition(async (pos) => {
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
+        if (!res.ok) throw new Error("Geocoding service unavailable");
         const data = await res.json();
         if (data && data.address) {
-          const detectedString = [data.address.state_district, data.address.county, data.address.city, data.address.state].join(" ").toUpperCase();
+          const addr = data.address;
+          const detectedString = [
+            addr.district,
+            addr.state_district,
+            addr.county,
+            addr.city,
+            addr.town,
+            addr.suburb,
+            addr.village,
+            addr.state,
+            data.display_name
+          ].filter(Boolean).join(" ").toUpperCase();
+
           const match = Object.keys(SRI_LANKA_LOCATIONS).find(d => detectedString.includes(d));
           if (match) {
             setDistrict(match);
-            setPlace("");
+            const matchedPlaces = SRI_LANKA_LOCATIONS[match] || [];
+            const foundPlace = matchedPlaces.find(p => detectedString.includes(p.toUpperCase()));
+            if (foundPlace) {
+              setPlace(foundPlace);
+              toast.success(`📍 ${foundPlace}, ${match}`);
+            } else {
+              setPlace("");
+              toast.success(`📍 ${match}`);
+            }
           } else {
-            alert("Could not map your location to a Sri Lankan district.");
+            toast.error("Your detected location is outside Sri Lanka districts. Please select manually.");
           }
+        } else {
+          toast.error("Could not determine your address details.");
         }
       } catch (err) {
         console.error("GPS detect error:", err);
+        toast.error("Could not fetch location address. Please select manually.");
       } finally {
         setDetecting(false);
       }
-    }, () => {
+    }, (err) => {
       setDetecting(false);
-      alert("Location permission denied.");
-    });
+      console.warn("Geolocation permission error:", err);
+      toast.error(err.code === 1 ? "Location permission denied in browser." : "Unable to retrieve your location.");
+    }, { enableHighAccuracy: true, timeout: 10000 });
   };
 
   // Color variables for theme-aware rendering

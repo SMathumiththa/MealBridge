@@ -1,4 +1,6 @@
+const BASE_URL = process.env.API_PUBLIC_URL || process.env.BACKEND_URL || 'http://localhost:5000';
 const Food = require('../models/Food');
+const Request = require('../models/Request');
 const mongoose = require('mongoose');
 const { isCloudinaryConfigured } = require('../config/cloudinary');
 const { sendFoodAlertEmail } = require('../services/emailService');
@@ -13,6 +15,8 @@ const createDonation = async (req, res) => {
     const numericQuantity = Number(quantity);
     const numericPeopleServed = Number(peopleServed);
     const emergencyFlag = isEmergency === 'true' || isEmergency === true;
+    const expiryDate = new Date(expiryTime);
+    const pickupDate = pickupTime ? new Date(pickupTime) : undefined;
 
     if (!foodName || !description || !foodType || !location || !expiryTime || Number.isNaN(numericQuantity) || numericQuantity <= 0) {
       return res
@@ -25,6 +29,12 @@ const createDonation = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Please enter how many people this donation can feed" });
     }
+    if (Number.isNaN(expiryDate.getTime()) || expiryDate.getTime() <= (Date.now() - 60000)) {
+      return res.status(400).json({ success: false, message: "Expiry time must be in the future" });
+    }
+    if (pickupDate && Number.isNaN(pickupDate.getTime())) {
+      return res.status(400).json({ success: false, message: "Please provide a valid pickup time" });
+    }
 
     let imageUrl = null;
     if (req.file) {
@@ -32,7 +42,7 @@ const createDonation = async (req, res) => {
         imageUrl = req.file.path; // Cloudinary URL
       } else {
         // Local URL using the static uploads folder
-        imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+        imageUrl = `${BASE_URL}/uploads/${req.file.filename}`;
       }
     }
 
@@ -49,6 +59,9 @@ const createDonation = async (req, res) => {
     } catch (e) {
       parsedLocation = { address: location.trim() };
     }
+    if (!parsedLocation || typeof parsedLocation.address !== 'string' || !parsedLocation.address.trim()) {
+      return res.status(400).json({ success: false, message: "Please provide a valid pickup location" });
+    }
 
     const food = await Food.create({
       donor: req.user._id,
@@ -60,8 +73,8 @@ const createDonation = async (req, res) => {
       unit: unit || 'kg',
       peopleServed: numericPeopleServed,
       location: parsedLocation,
-      pickupTime: pickupTime ? new Date(pickupTime) : undefined,
-      expiryTime: new Date(expiryTime),
+      pickupTime: pickupDate,
+      expiryTime: expiryDate,
       image: imageUrl,
       isEmergency: emergencyFlag,
       adminStatus: 'pending',
@@ -75,28 +88,31 @@ const createDonation = async (req, res) => {
       ],
     });
 
-    // Notify logic: Smart Match or Emergency Broadcast
-    const User = require('../models/User');
-    const Notification = require('../models/Notification');
-    const ngos = await User.find({ role: 'ngo', status: 'active' });
-    const volunteers = await User.find({ role: 'volunteer', status: 'active' });
+    // Notifications are best-effort: a saved donation must not be reported as failed
+    // because an optional alert provider or notification write is unavailable.
+    try {
+      // Notify logic: Smart Match or Emergency Broadcast
+      const User = require('../models/User');
+      const Notification = require('../models/Notification');
+      const ngos = await User.find({ role: 'ngo', status: 'active' });
+      const volunteers = await User.find({ role: 'volunteer', status: 'active' });
     
-    const peopleThreshold = Number(process.env.LARGE_DONATION_THRESHOLD_PEOPLE || 20);
-    const qtyThreshold = Number(process.env.LARGE_DONATION_THRESHOLD_QTY || 10);
-    const isLarge = (numericPeopleServed >= peopleThreshold) || (numericQuantity >= qtyThreshold);
+      const peopleThreshold = Number(process.env.LARGE_DONATION_THRESHOLD_PEOPLE || 20);
+      const qtyThreshold = Number(process.env.LARGE_DONATION_THRESHOLD_QTY || 10);
+      const isLarge = (numericPeopleServed >= peopleThreshold) || (numericQuantity >= qtyThreshold);
 
-    const isUrgent = emergencyFlag || isLarge;
+      const isUrgent = emergencyFlag || isLarge;
 
-    let targetNgoData = [];
+      let targetNgoData = [];
     
-    if (isUrgent) {
+      if (isUrgent) {
       // For urgent, just notify all NGOs
       targetNgoData = ngos.map(ngo => ({ ngo, matchPercentage: 100 }));
-    } else {
-      targetNgoData = findBestMatches(food, ngos, 5);
-    }
+      } else {
+        targetNgoData = findBestMatches(food, ngos, 5);
+      }
     
-    const notifications = targetNgoData.map(data => {
+      const notifications = targetNgoData.map(data => {
       const { ngo, matchPercentage } = data;
       let msg = "";
       if (isUrgent) {
@@ -111,12 +127,12 @@ const createDonation = async (req, res) => {
         type: 'new_donation',
         relatedId: food._id
       };
-    });
+      });
 
-    const targetNgos = targetNgoData.map(d => d.ngo);
+      const targetNgos = targetNgoData.map(d => d.ngo);
 
     // If urgent, notify volunteers too
-    if (isUrgent) {
+      if (isUrgent) {
       volunteers.forEach(vol => {
         notifications.push({
           recipientId: vol._id,
@@ -125,15 +141,16 @@ const createDonation = async (req, res) => {
           relatedId: food._id
         });
       });
-    }
+      }
     
-    if (notifications.length > 0) {
+      if (notifications.length > 0) {
       const createdNotifs = await Notification.insertMany(notifications);
       const io = req.app.get("io");
       if (io) {
         createdNotifs.forEach(notif => {
           io.to(notif.recipientId.toString()).emit("new_notification", notif);
         });
+      }
       }
       // If urgent, send immediate email alerts to NGOs
       try {
@@ -178,6 +195,8 @@ const createDonation = async (req, res) => {
       } catch (smsError) {
          console.error('Error sending SMS alerts:', smsError);
       }
+    } catch (notificationError) {
+      console.error("Donation alert processing failed:", notificationError);
     }
 
     res.status(201).json({
@@ -213,6 +232,9 @@ const updateDonation = async (req, res) => {
     }
 
     const updates = { ...req.body };
+    if (updates.expiryTime && new Date(updates.expiryTime).getTime() <= Date.now()) {
+      return res.status(400).json({ success: false, message: "Expiry time must be in the future" });
+    }
     if (updates.location && typeof updates.location === 'string') {
       try {
         const parsed = JSON.parse(updates.location);
@@ -226,7 +248,7 @@ const updateDonation = async (req, res) => {
       if (isCloudinaryConfigured) {
         updates.image = req.file.path;
       } else {
-        updates.image = `http://localhost:5000/uploads/${req.file.filename}`;
+        updates.image = `${BASE_URL}/uploads/${req.file.filename}`;
       }
     }
 
@@ -255,12 +277,25 @@ const deleteDonation = async (req, res) => {
       return res.status(404).json({ success: false, message: "Donation not found" });
     }
 
-    if (donation.donor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    const donorId = donation.donor?._id || donation.donor;
+    const isOwner = donorId && String(donorId) === String(req.user._id);
+
+    if (!isOwner && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: "Unauthorized to delete this donation" });
     }
 
-    if (donation.donor.toString() === req.user._id.toString() && donation.status !== 'pending') {
-      return res.status(400).json({ success: false, message: "Donors can only delete pending donations" });
+    if (isOwner) {
+      const activeRequests = await Request.countDocuments({
+        foodId: id,
+        status: { $in: ['pending', 'accepted', 'picked_up'] }
+      });
+
+      if (activeRequests > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "This donation cannot be deleted while an active request or delivery exists"
+        });
+      }
     }
 
     // Cascading Delete: Delete all Requests linked to this Food
@@ -427,7 +462,7 @@ const downloadReceipt = async (req, res) => {
     const receiptUrl = await generateTaxReceipt(donorName, {
       type: 'food',
       foodName: donation.foodName,
-      quantity: donation.quantity,
+      quantity: donation.originalQuantity || donation.quantity,
       unit: donation.unit || 'kg',
       peopleServed: donation.peopleServed || 0
     });
@@ -436,7 +471,7 @@ const downloadReceipt = async (req, res) => {
     res.json({
       success: true,
       data: {
-        receiptUrl: `http://localhost:5000${receiptUrl}`
+        receiptUrl: `${BASE_URL}${receiptUrl}`
       }
     });
 

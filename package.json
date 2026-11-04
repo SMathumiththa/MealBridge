@@ -7,6 +7,8 @@
     "doc": "docs"
   },
   "scripts": {
+    "build": "node start-app.js --build-only",
+    "start": "node start-app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

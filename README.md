@@ -2,6 +2,13 @@
 
 Welcome! Here's a guide to all the documentation files to help you understand and use the system.
 
+## One-click startup (Windows)
+
+After installing the project dependencies and configuring `backend/.env`, double-click
+**Start MealBridge.vbs**. It builds the frontend and admin portal, starts the backend,
+and opens `http://localhost:5000/` automatically without requiring a terminal window.
+The admin portal is available at `http://localhost:5000/admin/`.
+
 ## 📚 Documentation Files
 
 ### Root Level Documentation

@@ -1,8 +1,11 @@
+import VisaCardPreview from './VisaCardPreview';
 import { useState } from 'react';
 import { COLORS } from '../theme';
 
 export default function CustomPaymentGateway({ amount, onPay, onCancel, onChangeAmount, qrCodeImage, initialMethod = 'online' }) {
-  const [selectedMethod, setSelectedMethod] = useState(initialMethod === 'paypal' ? 'paypal' : initialMethod === 'qr' ? 'qr' : 'card');
+  const [selectedMethod, setSelectedMethod] = useState(
+    initialMethod === 'qr' && qrCodeImage ? 'qr' : initialMethod === 'paypal' ? 'paypal' : 'card'
+  );
   const [cardNo, setCardNo] = useState('');
   const [cardName, setCardName] = useState('');
   const [expiry, setExpiry] = useState('');
@@ -27,7 +30,7 @@ export default function CustomPaymentGateway({ amount, onPay, onCancel, onChange
   };
 
   const handlePay = () => {
-    const canPay = selectedMethod !== "card" || (cardNo.replace(/\s/g, "").length === 16 && cardName && expiry && cvv.length >= 3);
+    const canPay = selectedMethod !== "card" || (cardNo.replace(/\s/g, "").length === 16 && expiry && cvv.length >= 3);
     if (!canPay || (selectedMethod === "qr" && !qrReceipt)) return;
     
     setShowConfirmation(true);
@@ -44,13 +47,13 @@ export default function CustomPaymentGateway({ amount, onPay, onCancel, onChange
   };
 
   const methods = [
-    { id: 'card', name: 'Credit / Debit Card', icon: '💳' },
+    { id: 'card', name: 'Visa Card', icon: '💳' },
     { id: 'paypal', name: 'PayPal', icon: '🅿️' },
     { id: 'qr', name: 'QR Payment', icon: '▦' },
   ];
 
   return (
-    <div style={{ position: 'relative', display: 'flex', width: '100%', minHeight: 500, background: 'rgba(20, 40, 30, 0.95)', borderRadius: 24, overflow: 'hidden' }}>
+    <div style={{ position: 'relative', display: 'flex', width: '100%', minHeight: 540, background: 'linear-gradient(145deg, #10271d, #1d3d2c)', borderRadius: 28, overflow: 'hidden', boxShadow: '0 30px 80px rgba(0,0,0,0.45)' }}>
       {showConfirmation && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 5, display: 'grid', placeItems: 'center', padding: 24, background: 'rgba(8, 20, 14, 0.94)' }}>
           <div style={{ width: '100%', maxWidth: 420, padding: '30px 26px', textAlign: 'center', background: 'linear-gradient(160deg, #203b2c, #14291e)', border: `1px solid ${COLORS.mint}55`, borderRadius: 20, boxShadow: '0 24px 60px rgba(0,0,0,0.45)' }}>
@@ -80,15 +83,15 @@ export default function CustomPaymentGateway({ amount, onPay, onCancel, onChange
         <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 16 }}>Select Payment method</p>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {methods.map(m => (
+          {methods.filter(m => m.id !== 'qr' || qrCodeImage).map(m => (
             <div 
               key={m.id}
               onClick={() => setSelectedMethod(m.id)}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '16px', borderRadius: 12, cursor: 'pointer',
-                background: selectedMethod === m.id ? 'rgba(255,255,255,0.1)' : 'transparent',
-                border: selectedMethod === m.id ? `1px solid ${COLORS.mint}` : `1px solid transparent`,
+                background: selectedMethod === m.id ? 'rgba(126,200,160,0.16)' : 'rgba(255,255,255,0.025)',
+                border: selectedMethod === m.id ? `1px solid ${COLORS.mint}` : '1px solid rgba(255,255,255,0.08)',
                 transition: 'all 0.2s ease'
               }}
             >
@@ -108,47 +111,19 @@ export default function CustomPaymentGateway({ amount, onPay, onCancel, onChange
         
         {selectedMethod === 'qr' ? (
           <div style={{ display: 'grid', placeItems: 'center', minHeight: 200, marginBottom: 32, padding: 20, background: 'rgba(255,255,255,0.96)', borderRadius: 20 }}>
-            {qrCodeImage ? <img src={qrCodeImage} alt="NGO payment QR code" style={{ width: 180, height: 180, objectFit: 'contain' }} /> : <div style={{ color: '#334155', textAlign: 'center' }}>NGO QR code is not available yet.</div>}
-          </div>
-        ) : (<>
-        {/* Dynamic Credit Card Graphic */}
-        <div style={{
-          width: '100%', height: 200, borderRadius: 20, padding: 24, marginBottom: 32, boxSizing: 'border-box',
-          background: `linear-gradient(135deg, ${COLORS.mint} 0%, ${COLORS.forestLight} 100%)`,
-          boxShadow: '0 16px 32px rgba(126,200,160,0.2)',
-          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-          position: 'relative', overflow: 'hidden'
-        }}>
-          {/* Background decoration */}
-          <div style={{ position: 'absolute', top: -50, right: -20, width: 150, height: 150, background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }}></div>
-          <div style={{ position: 'absolute', bottom: -30, left: -40, width: 100, height: 100, background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }}></div>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 1 }}>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>Amount to pay</div>
-            <div style={{ display: 'flex', gap: 4 }}>
-               <div style={{ width: 24, height: 24, background: '#eb001b', borderRadius: '50%', opacity: 0.8 }}></div>
-               <div style={{ width: 24, height: 24, background: '#f79e1b', borderRadius: '50%', opacity: 0.8, marginLeft: -12 }}></div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ color: '#17324d', fontSize: 13, fontWeight: 800, marginBottom: 10 }}>SCAN NGO QR TO PAY</div>
+              <img src={qrCodeImage} alt="NGO payment QR code" style={{ width: 220, height: 220, objectFit: 'contain', borderRadius: 12 }} />
             </div>
           </div>
-          
-          <div style={{ zIndex: 1 }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: 'white', marginBottom: 20 }}>
-              LKR {Number(amount).toLocaleString()}
-            </div>
-            
-            <div style={{ fontSize: 18, color: 'white', letterSpacing: 2, fontFamily: 'monospace', marginBottom: 12 }}>
-              {cardNo || '•••• •••• •••• ••••'}
-            </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.8)', fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 }}>
-              <div style={{ maxWidth: 150, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {cardName || 'CARD HOLDER'}
-              </div>
-              <div>{expiry || 'MM/YY'}</div>
-            </div>
+        ) : (
+          <div style={{ marginBottom: 20 }}>
+            <VisaCardPreview
+              cardNumber={cardNo ? (cardNo.length >= 16 ? cardNo : cardNo + " •••• •••• ••••".slice(cardNo.length)) : "••••  ••••  ••••  ••••"}
+              expiry={expiry || "04/24"}
+            />
           </div>
-        </div>
-        </>)}
+        )}
 
         {/* Input Fields */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>

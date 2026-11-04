@@ -8,7 +8,7 @@ export default function DashboardLayout({ role, activePage, onNav, onLogout, use
   }, []);
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", position: "relative", background: "transparent" }}>
+    <div className="dashboard-layout" style={{ display: "flex", minHeight: "100vh", position: "relative", background: "transparent" }}>
       {/* Sidebar is fixed on the left */}
       <Sidebar 
         role={role} 
@@ -22,7 +22,7 @@ export default function DashboardLayout({ role, activePage, onNav, onLogout, use
       />
       
       {/* Main Content wrapper - centered with flex */}
-      <main style={{ 
+      <main className="dashboard-main" style={{
         flex: 1, 
         display: "flex", 
         justifyContent: "center", // This centers the inner content horizontally!
@@ -30,7 +30,7 @@ export default function DashboardLayout({ role, activePage, onNav, onLogout, use
         background: "transparent",
       }}>
         {/* Inner container constraints the width */}
-        <div style={{ width: "100%", maxWidth: 900 }}>
+        <div className="dashboard-content" style={{ width: "100%", maxWidth: 900 }}>
           {children}
         </div>
       </main>
