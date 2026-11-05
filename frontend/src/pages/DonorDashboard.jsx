@@ -21,6 +21,10 @@ import ChatWidget from "../components/ChatWidget";
 import Leaderboard from "../components/Leaderboard";
 import io from "socket.io-client";
 
+const SOCKET_URL = import.meta.env.DEV
+  ? `http://${window.location.hostname}:5000`
+  : window.location.origin;
+
 const FOOD_CATEGORIES = ["Cooked Food", "Raw Vegetables", "Grains & Rice", "Dairy", "Fruits", "Bakery", "Other"];
 
 function DonorHome({ setActive, user, stats, recentDonations, ratingStats, theme }) {
@@ -1216,10 +1220,10 @@ function FundraisersPage({ fundRequests, reload, theme, user }) {
                 {req.documents && (
                   <div style={{ display: "flex", gap: 12, flexWrap: "nowrap", overflowX: "auto", marginBottom: 16, fontSize: 16, fontWeight: 600, paddingBottom: 4 }}>
                     {req.documents.needStatement && (
-                      <a href="#" onClick={(e) => { e.preventDefault(); setViewDocUrl(req.documents.needStatement.startsWith('http') ? req.documents.needStatement : `http://${window.location.hostname}:5000/uploads/${req.documents.needStatement.split(/[\\/]/).pop()}`); }} style={{color: COLORS.amber, textDecoration: "none", background: isLight ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.2)", padding: "8px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap"}}>📄 Need Statement</a>
+                      <a href="#" onClick={(e) => { e.preventDefault(); setViewDocUrl(req.documents.needStatement.startsWith('http') ? req.documents.needStatement : `${SOCKET_URL}/uploads/${req.documents.needStatement.split(/[\\/]/).pop()}`); }} style={{color: COLORS.amber, textDecoration: "none", background: isLight ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.2)", padding: "8px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap"}}>📄 Need Statement</a>
                     )}
                     {req.documents.bankDetails && (
-                      <a href="#" onClick={(e) => { e.preventDefault(); setViewDocUrl(req.documents.bankDetails.startsWith('http') ? req.documents.bankDetails : `http://${window.location.hostname}:5000/uploads/${req.documents.bankDetails.split(/[\\/]/).pop()}`); }} style={{color: COLORS.amber, textDecoration: "none", background: isLight ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.2)", padding: "8px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap"}}>📄 Bank Details</a>
+                      <a href="#" onClick={(e) => { e.preventDefault(); setViewDocUrl(req.documents.bankDetails.startsWith('http') ? req.documents.bankDetails : `${SOCKET_URL}/uploads/${req.documents.bankDetails.split(/[\\/]/).pop()}`); }} style={{color: COLORS.amber, textDecoration: "none", background: isLight ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.2)", padding: "8px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap"}}>📄 Bank Details</a>
                     )}
                   </div>
                 )}
@@ -1492,7 +1496,7 @@ export default function DonorDashboard({ theme }) {
 
   useEffect(() => {
     if (!user?._id) return;
-    const socket = io(`http://${window.location.hostname}:5000`);
+    const socket = io(SOCKET_URL);
     socket.emit("join_user_room", user._id);
     
     socket.on("new_notification", (notif) => {

@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import API from "../api/axios";
 
-const SOCKET_URL = `http://${window.location.hostname}:5000`;
+const SOCKET_URL = import.meta.env.DEV
+  ? `http://${window.location.hostname}:5000`
+  : window.location.origin;
 
 import LiveTracker from "./LiveTracker";
 

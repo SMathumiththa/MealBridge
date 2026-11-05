@@ -22,6 +22,10 @@ import io from "socket.io-client";
 import MapComponent from "../components/MapComponent";
 import Leaderboard from "../components/Leaderboard";
 
+const SOCKET_URL = import.meta.env.DEV
+  ? `http://${window.location.hostname}:5000`
+  : window.location.origin;
+
 // ─── REUSABLE UI COMPONENTS (Internal for NGO Dashboard specific logic) ────
 function Badge({ children, color = "amber" }) {
   const colors = {
@@ -1453,7 +1457,7 @@ export default function NGODashboard({ theme = "dark" }) {
 
   useEffect(() => {
     if (!user?._id) return;
-    const socket = io(`http://${window.location.hostname}:5000`);
+    const socket = io(SOCKET_URL);
     socket.emit("join_user_room", user._id);
     
     socket.on("new_notification", (notif) => {

@@ -2,6 +2,12 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import FloatingFood from "../components/FloatingFood";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV
+    ? `http://${window.location.hostname}:5000/api`
+    : "/api");
+
 export default function VerifyEmail({ theme = "dark" }) {
   const isLight = theme === "light";
   const navigate = useNavigate();
@@ -25,7 +31,7 @@ export default function VerifyEmail({ theme = "dark" }) {
 
     try {
       setLoading(true);
-      const res = await fetch(`http://${window.location.hostname}:5000/api/auth/verify-email`, {
+      const res = await fetch(`${API_BASE_URL}/auth/verify-email`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

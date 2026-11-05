@@ -16,6 +16,10 @@ import Leaderboard from "../components/Leaderboard";
 import { getFeedbacksByVolunteer } from "../api/feedback";
 import RatingStars from "../components/RatingStars";
 
+const SOCKET_URL = import.meta.env.DEV
+  ? `http://${window.location.hostname}:5000`
+  : window.location.origin;
+
 function VolunteerFeedbacks({ user, theme, activePage }) {
   const { t } = useTranslation();
   const [feedbacks, setFeedbacks] = useState([]);
@@ -212,7 +216,7 @@ export default function VolunteerDashboard({ theme }) {
 
   useEffect(() => {
     if (!user?._id) return;
-    const socket = io(`http://${window.location.hostname}:5000`);
+    const socket = io(SOCKET_URL);
     socket.emit("join_user_room", user._id);
     
     socket.on("new_notification", (notif) => {

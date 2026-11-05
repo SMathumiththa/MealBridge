@@ -17,11 +17,16 @@ import {
   PieChart, Pie, Cell
 } from "recharts";
 
+const SOCKET_URL = import.meta.env.DEV
+  ? `http://${window.location.hostname}:5000`
+  : window.location.origin;
+
 const getDocumentUrl = (value) => {
   if (!value) return "";
   if (/^https?:\/\//i.test(value)) return value;
-  const apiUrl = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000/api`;
-  const backendOrigin = apiUrl.replace(/\/api\/?$/, "");
+  const backendOrigin = import.meta.env.DEV
+    ? `http://${window.location.hostname}:5000`
+    : window.location.origin;
   return `${backendOrigin}/uploads/${value.split(/[\\/]/).pop()}`;
 };
 
@@ -234,7 +239,7 @@ export default function AdminDashboard({ theme = "dark" }) {
   useEffect(() => {
     if (!user?._id) return;
 
-    const socket = io(`http://${window.location.hostname}:5000`);
+    const socket = io(SOCKET_URL);
     socket.emit("join_user_room", user._id);
 
     socket.on("new_notification", (notif) => {

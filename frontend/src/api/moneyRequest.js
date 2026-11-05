@@ -1,6 +1,11 @@
 import axios from "axios";
 
-const API_URL = `http://${window.location.hostname}:5000/api/money-requests`;
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV
+    ? `http://${window.location.hostname}:5000/api`
+    : "/api");
+const API_URL = `${API_BASE_URL}/money-requests`;
 
 const getConfig = () => ({
   headers: {

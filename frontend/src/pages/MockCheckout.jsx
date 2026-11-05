@@ -169,8 +169,9 @@ export default function MockCheckout({ theme = "dark" }) {
 
   const getCorrectReceiptUrl = (url) => {
     if (!url) return "";
-    const apiBase = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000/api`;
-    const backendOrigin = apiBase.replace("/api", "");
+    const backendOrigin = import.meta.env.DEV
+      ? `http://${window.location.hostname}:5000`
+      : window.location.origin;
     return url.replace(/http:\/\/localhost:5000/g, backendOrigin);
   };
 

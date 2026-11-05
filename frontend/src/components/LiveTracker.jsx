@@ -4,6 +4,10 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import io from 'socket.io-client';
 
+const SOCKET_URL = import.meta.env.DEV
+  ? `http://${window.location.hostname}:5000`
+  : window.location.origin;
+
 // Removed require() calls for leaflet icons as they break in Vite
 
 const markerIcon = (color) => L.divIcon({
@@ -43,7 +47,7 @@ export default function LiveTracker({ roomId, currentUserRole, donorLocation, ng
   const watchIdRef = useRef(null);
 
   useEffect(() => {
-    const newSocket = io(`http://${window.location.hostname}:5000`);
+    const newSocket = io(SOCKET_URL);
     setSocket(newSocket);
     
     newSocket.emit("join_room", roomId);
