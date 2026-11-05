@@ -241,6 +241,81 @@ canvas {
   }
 }
 
+@media (max-width: 600px) {
+  .donation-history-card {
+    padding: 12px !important;
+    gap: 12px !important;
+  }
+
+  .donation-history-header {
+    align-items: flex-start !important;
+    flex-wrap: wrap;
+    gap: 10px !important;
+  }
+
+  .donation-history-header > div:nth-child(2) {
+    flex: 1 1 calc(100% - 70px) !important;
+    min-width: 0;
+  }
+
+  .donation-history-header > div:nth-child(3) {
+    order: 3;
+    width: 100%;
+    padding-left: 66px;
+    align-items: flex-start !important;
+  }
+
+  .donation-history-actions {
+    order: 4;
+    width: 100%;
+    padding-left: 66px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .donation-history-actions button {
+    flex: 1 1 120px;
+    min-height: 36px;
+  }
+
+  .fundraiser-card {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 14px !important;
+    padding: 16px !important;
+  }
+
+  .fundraiser-card > div:first-child {
+    width: 100% !important;
+    height: 150px !important;
+    border-radius: 14px !important;
+  }
+
+  .fundraiser-details {
+    width: 100%;
+  }
+
+  .fundraiser-details h3 {
+    font-size: 19px !important;
+    overflow-wrap: anywhere;
+  }
+
+  .fundraiser-details > div {
+    max-width: 100%;
+  }
+
+  .fundraiser-action {
+    justify-content: stretch !important;
+    width: 100%;
+  }
+
+  .fundraiser-action button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
 body.dashboard-route .fixed-brand {
   display: none !important;
 }

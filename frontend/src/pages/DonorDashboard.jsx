@@ -97,7 +97,7 @@ function DonorHome({ setActive, user, stats, recentDonations, ratingStats, theme
           <h3 style={{ color: panelText, fontSize: 18, fontWeight: 600, marginBottom: 16 }}>{t("common.recentActivity")}</h3>
           {recentDonations.length === 0 ? <p style={{ color: isLight ? "rgba(15,23,42,0.55)" : "rgba(255,255,255,0.4)" }}>{t("common.noRecentDonations")}</p> : null}
           {recentDonations.slice(0, 3).map(d => (
-            <div key={d._id} style={{
+            <div key={d._id} className="donation-history-card" style={{
               background: isLight ? "rgba(255,255,255,0.94)" : "rgba(255,255,255,0.06)", border: isLight ? "1px solid rgba(15,23,42,0.12)" : `1px solid rgba(255,255,255,0.15)`, borderRadius: 12,
               padding: "16px 20px", marginBottom: 12, display: "flex", alignItems: "center", gap: 14,
             }}>
@@ -452,7 +452,7 @@ function MyDonations({ donations, moneyDonations = [], onDelete, theme }) {
           background: cardBg, border: borderColor, borderRadius: 12,
           padding: "16px", marginBottom: 16, display: "flex", flexDirection: "column", gap: 16,
         }}>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          <div className="donation-history-header" style={{ display: "flex", gap: 14, alignItems: "center" }}>
             {d.image ? (
               <img src={d.image} alt={d.foodName} style={{ width: 56, height: 56, borderRadius: 8, objectFit: "cover" }} />
             ) : (
@@ -475,7 +475,7 @@ function MyDonations({ donations, moneyDonations = [], onDelete, theme }) {
                 padding: "2px 8px", borderRadius: 12, textAlign: "center"
               }}>Admin: {d.adminStatus || "pending"}</span>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="donation-history-actions" style={{ display: 'flex', gap: 8 }}>
               {d.status === "delivered" && (
                 <button 
                   onClick={async () => {
@@ -1197,7 +1197,7 @@ function FundraisersPage({ fundRequests, reload, theme, user }) {
             const remaining = Math.max(0, Number(req.amountNeeded) - Number(req.amountRaised));
             const goalReached = remaining <= 0;
             return (
-            <div key={req._id} style={{ background: isLight ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.06)", border: isLight ? "1px solid rgba(15,23,42,0.12)" : "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 22, display: "grid", gridTemplateColumns: "110px 1fr auto", gap: 18, alignItems: "center" }}>
+            <div key={req._id} className="fundraiser-card" style={{ background: isLight ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.06)", border: isLight ? "1px solid rgba(15,23,42,0.12)" : "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: 22, display: "grid", gridTemplateColumns: "110px 1fr auto", gap: 18, alignItems: "center" }}>
               <div style={{ width: 110, height: 110, borderRadius: 20, background: isLight ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
                 {req.image ? (
                   <img src={req.image} alt={req.purpose} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -1207,7 +1207,7 @@ function FundraisersPage({ fundRequests, reload, theme, user }) {
                   </div>
                 )}
               </div>
-              <div style={{ minWidth: 0 }}>
+              <div className="fundraiser-details" style={{ minWidth: 0 }}>
                 <h3 style={{ color: textColor, margin: "0 0 10px", fontSize: 20 }}>{req.purpose}</h3>
                 <div style={{ fontSize: 13, color: mutedColor, marginBottom: 10 }}>By {req.ngoId?.name || "Verified NGO"}</div>
                 <div style={{ color: req.status === "approved" ? COLORS.mint : COLORS.amber, fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
@@ -1234,7 +1234,7 @@ function FundraisersPage({ fundRequests, reload, theme, user }) {
                   <div style={{ height: "100%", background: COLORS.amber, borderRadius: 999, width: `${Math.min((req.amountRaised / req.amountNeeded) * 100, 100)}%` }} />
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div className="fundraiser-action" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <button 
                   onClick={() => req.status === "approved" && !goalReached && handleDonate(req)}
                   disabled={goalReached || req.status !== "approved"}

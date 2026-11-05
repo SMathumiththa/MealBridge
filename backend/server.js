@@ -19,10 +19,17 @@ const frontendOrigins = [
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),
+  process.env.CLIENT_URL,
+  process.env.API_PUBLIC_URL,
+  process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+    : null,
   `http://localhost:${process.env.PORT || 5000}`,
   `http://127.0.0.1:${process.env.PORT || 5000}`,
-  "http://localhost:4174"
-];
+  "http://localhost:4174",
+]
+  .filter(Boolean)
+  .map((origin) => origin.replace(/\/$/, ""));
 
 // ================= MIDDLEWARE =================
 app.use(
