@@ -5,6 +5,16 @@ export const registerUser = async (data) => {
   return response.data;
 };
 
+export const verifyEmailApi = async (data) => {
+  const response = await API.post("/auth/verify-email", data);
+  return response.data;
+};
+
+export const resendVerificationCode = async (data) => {
+  const response = await API.post("/auth/resend-verification", data);
+  return response.data;
+};
+
 export const loginUser = async (data) => {
   const response = await API.post("/auth/login", data);
   return response.data;
