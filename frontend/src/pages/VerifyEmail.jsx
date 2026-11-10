@@ -1,12 +1,7 @@
-import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import FloatingFood from "../components/FloatingFood";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV
-    ? `http://${window.location.hostname}:5000/api`
-    : "/api");
+import { verifyEmailApi, resendVerificationCode } from "../api/auth";
 
 export default function VerifyEmail({ theme = "dark" }) {
   const isLight = theme === "light";
@@ -20,10 +15,26 @@ export default function VerifyEmail({ theme = "dark" }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  // Resend state
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [resendSuccessMsg, setResendSuccessMsg] = useState("");
+
+  useEffect(() => {
+    let interval = null;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    
+    setResendSuccessMsg("");
+
     if (!email || !code) {
       setError("Please provide both email and verification code.");
       return;
@@ -31,25 +42,29 @@ export default function VerifyEmail({ theme = "dark" }) {
 
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE_URL}/auth/verify-email`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ email: email.trim(), code: code.trim() })
-      });
-      
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.message || "Verification failed");
-      }
-      
+      await verifyEmailApi({ email: email.trim(), code: code.trim() });
       setSuccess(true);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message || "Verification failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendTimer > 0 || resendLoading || !email) return;
+    setError("");
+    setResendSuccessMsg("");
+
+    try {
+      setResendLoading(true);
+      const res = await resendVerificationCode({ email: email.trim() });
+      setResendSuccessMsg(res.message || "Verification code sent! Please check your inbox.");
+      setResendTimer(45); // 45 seconds countdown
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || "Failed to resend code");
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -65,7 +80,7 @@ export default function VerifyEmail({ theme = "dark" }) {
 
   const inputStyle = {
     width: "100%",
-    padding: "16px 48px",
+    padding: "16px 16px 16px 48px",
     background: inputBg,
     border: inputBorder,
     borderRadius: "12px",
@@ -81,7 +96,7 @@ export default function VerifyEmail({ theme = "dark" }) {
       minHeight: "100vh",
       display: "grid",
       placeItems: "center",
-      padding: "20px",
+      padding: "20px 14px",
       background: pageBg,
       color: pageText,
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
@@ -90,13 +105,13 @@ export default function VerifyEmail({ theme = "dark" }) {
     }}>
       <FloatingFood count={16} />
 
-      <div style={{
+      <div className="auth-card" style={{
         background: cardBg,
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
         border: cardBorder,
         borderRadius: "24px",
-        padding: "48px 40px",
+        padding: "36px 28px",
         width: "100%",
         maxWidth: "460px",
         boxShadow: "0 24px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
@@ -106,24 +121,34 @@ export default function VerifyEmail({ theme = "dark" }) {
       }}>
         {!success ? (
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: "32px" }}>
-              <p style={{ color: "#d68840", fontSize: "12px", fontWeight: "700", letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: "8px" }}>
+            <div style={{ marginBottom: "26px" }}>
+              <p style={{ color: "#d68840", fontSize: "11px", fontWeight: "700", letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: "6px" }}>
                 ACCOUNT SECURITY
               </p>
-              <h2 style={{ color: "white", fontSize: "32px", fontWeight: "700", margin: 0 }}>
+              <h2 style={{ color: pageText, fontSize: "28px", fontWeight: "700", margin: 0 }}>
                 Verify Email
               </h2>
-              <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "14px", marginTop: "12px" }}>
-                We've sent a 6-digit verification code to your email.
+              <p style={{ color: isLight ? "#475569" : "rgba(255,255,255,0.75)", fontSize: "14px", marginTop: "10px", lineHeight: 1.5 }}>
+                We've sent a 6-digit verification code to your email. Check your spam folder if you don't see it immediately.
               </p>
             </div>
 
-            {error && <p style={{ color: "#ffb3b3", fontSize: "14px", marginBottom: "20px", background: "rgba(255,0,0,0.1)", padding: "10px", borderRadius: "8px", border: "1px solid rgba(255,0,0,0.2)" }}>{error}</p>}
+            {error && (
+              <p style={{ color: "#ef4444", fontSize: "13px", marginBottom: "18px", background: "rgba(239, 68, 68, 0.12)", padding: "12px 14px", borderRadius: "10px", border: "1px solid rgba(239, 68, 68, 0.25)" }}>
+                {error}
+              </p>
+            )}
 
-            <div style={{ marginBottom: "20px" }}>
+            {resendSuccessMsg && (
+              <p style={{ color: "#22c55e", fontSize: "13px", marginBottom: "18px", background: "rgba(34, 197, 94, 0.12)", padding: "12px 14px", borderRadius: "10px", border: "1px solid rgba(34, 197, 94, 0.25)" }}>
+                {resendSuccessMsg}
+              </p>
+            )}
+
+            <div style={{ marginBottom: "18px" }}>
               <label style={{ color: "#95a89b", fontSize: "11px", fontWeight: "600", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>EMAIL</label>
               <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "14px", filter: "opacity(0.8)" }}>📧</span>
+                <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "16px" }}>📧</span>
                 <input 
                   type="email" 
                   placeholder="your@email.com"
@@ -135,16 +160,35 @@ export default function VerifyEmail({ theme = "dark" }) {
               </div>
             </div>
 
-            <div style={{ marginBottom: "32px" }}>
-              <label style={{ color: "#95a89b", fontSize: "11px", fontWeight: "600", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>VERIFICATION CODE</label>
+            <div style={{ marginBottom: "26px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <label style={{ color: "#95a89b", fontSize: "11px", fontWeight: "600", letterSpacing: "1px", textTransform: "uppercase", margin: 0 }}>VERIFICATION CODE</label>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendTimer > 0 || resendLoading || !email}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: resendTimer > 0 ? "rgba(255,255,255,0.4)" : "#e8923a",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    cursor: resendTimer > 0 ? "not-allowed" : "pointer",
+                    padding: 0,
+                    textDecoration: "underline"
+                  }}
+                >
+                  {resendLoading ? "Sending..." : resendTimer > 0 ? `Resend code in ${resendTimer}s` : "Resend code"}
+                </button>
+              </div>
               <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "14px", filter: "opacity(0.8)" }}>🔑</span>
+                <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", fontSize: "16px" }}>🔑</span>
                 <input 
                   type="text" 
                   placeholder="Enter 6-digit code"
                   value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  style={inputStyle}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  style={{ ...inputStyle, letterSpacing: "4px", fontSize: "18px", fontWeight: "700" }}
                   maxLength={6}
                 />
               </div>
@@ -173,12 +217,18 @@ export default function VerifyEmail({ theme = "dark" }) {
             >
               {loading ? "Verifying..." : "Verify My Email"}
             </button>
+
+            <div style={{ textAlign: "center", marginTop: "22px" }}>
+              <Link to="/login" style={{ color: "#e8923a", fontSize: "13px", textDecoration: "none", fontWeight: "600" }}>
+                Back to Sign in
+              </Link>
+            </div>
           </form>
         ) : (
           <div style={{ textAlign: "center", padding: "20px 0" }}>
-            <div style={{ fontSize: "48px", marginBottom: "16px" }}>✅</div>
-            <h2 style={{ fontSize: "24px", fontWeight: "700", color: "white", marginBottom: "12px" }}>Email Verified!</h2>
-            <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "15px", marginBottom: "32px" }}>
+            <div style={{ fontSize: "52px", marginBottom: "16px" }}>✅</div>
+            <h2 style={{ fontSize: "24px", fontWeight: "700", color: pageText, marginBottom: "12px" }}>Email Verified!</h2>
+            <p style={{ color: isLight ? "#475569" : "rgba(255,255,255,0.75)", fontSize: "15px", marginBottom: "28px", lineHeight: 1.5 }}>
               Your email has been successfully verified. You can now log in once an admin approves your account.
             </p>
             <button 
