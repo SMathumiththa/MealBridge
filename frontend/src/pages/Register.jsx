@@ -151,13 +151,13 @@ export default function Register({ theme = "dark" }) {
     }}>
       <FloatingFood count={16} />
 
-      <div style={{
+      <div className="auth-card" style={{
         background: cardBg,
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
         border: cardBorder,
         borderRadius: "24px",
-        padding: "48px 40px",
+        padding: "clamp(24px, 5vw, 44px) clamp(16px, 5vw, 36px)",
         width: "100%",
         maxWidth: "500px",
         boxShadow: "0 24px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
