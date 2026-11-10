@@ -165,7 +165,7 @@ export default function App() {
       <div style={bgStyle}>
         <button
           onClick={toggleLanguage}
-          className="dashboard-language-control"
+          className="dashboard-language-control app-header-control"
           style={{
             position: "fixed",
             top: 24,
@@ -177,7 +177,7 @@ export default function App() {
             justifyContent: "center",
             fontSize: 14,
             fontWeight: 700,
-            zIndex: 9999,
+            zIndex: 998,
             border: isLight ? "1px solid rgba(15,23,42,0.12)" : "1px solid rgba(255,255,255,0.15)",
             borderRadius: "50%",
             background: isLight ? "rgba(15,23,42,0.08)" : "rgba(255,255,255,0.06)",
@@ -196,6 +196,7 @@ export default function App() {
         </button>
         <button
           onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          className="theme-toggle-btn app-header-control"
           style={{
             position: "fixed",
             top: 24,
@@ -206,7 +207,7 @@ export default function App() {
             alignItems: "center",
             justifyContent: "center",
             fontSize: 20,
-            zIndex: 9999,
+            zIndex: 998,
             border: isLight ? "1px solid rgba(15,23,42,0.12)" : "1px solid rgba(255,255,255,0.15)",
             borderRadius: "50%",
             background: isLight ? "rgba(15,23,42,0.08)" : "rgba(255,255,255,0.06)",
