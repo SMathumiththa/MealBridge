@@ -86,6 +86,44 @@ canvas {
   max-width: 100%;
 }
 
+.admin-table-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 18px;
+  position: relative;
+}
+
+.admin-table-scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.admin-table-scroll-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.admin-table-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 3px;
+}
+
+.admin-table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+@media (max-width: 600px) {
+  .admin-filters-bar {
+    flex-direction: column !important;
+  }
+  .admin-filters-bar input,
+  .admin-filters-bar select {
+    width: 100% !important;
+    flex: none !important;
+    box-sizing: border-box !important;
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard-layout {
     flex-direction: column;
@@ -200,6 +238,66 @@ canvas {
 
   .dashboard-content [style*="grid-template-columns: 1fr 1fr"] {
     grid-template-columns: 1fr !important;
+  }
+
+  .admin-two-col-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-filters-bar {
+    gap: 10px !important;
+  }
+
+  .theme-toggle-btn {
+    top: 14px !important;
+    right: 14px !important;
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 18px !important;
+    z-index: 998 !important;
+  }
+
+  .dashboard-language-control {
+    top: 14px !important;
+    right: 60px !important;
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 13px !important;
+    z-index: 998 !important;
+  }
+
+  .admin-bell-btn {
+    top: 14px !important;
+    right: 106px !important;
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 18px !important;
+    z-index: 998 !important;
+  }
+
+  /* When mobile drawer is open, keep header buttons behind the backdrop */
+  body:has(.mobile-sidebar-open) .app-header-control,
+  body:has(.mobile-sidebar-open) .admin-bell-btn,
+  .mobile-sidebar-open ~ * .app-header-control,
+  .mobile-sidebar-open ~ * .admin-bell-btn {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.2s ease;
+  }
+
+  .admin-dashboard-main {
+    padding: 70px 14px 30px !important;
+  }
+
+  .fundraiser-card {
+    grid-template-columns: 1fr !important;
+    text-align: center;
+    justify-items: center;
+    gap: 14px !important;
+  }
+
+  .auth-card {
+    padding: clamp(24px, 6vw, 36px) clamp(16px, 5vw, 24px) !important;
   }
 
   .admin-dashboard-main > * {
