@@ -128,8 +128,16 @@ exports.registerUser = async (req, res) => {
       emailVerificationExpires: codeExpires,
     });
 
-    // Send verification email
-    await require("../services/emailService").sendVerificationEmail(user.email, user.name, verificationCode);
+    // Send verification email asynchronously so registration returns immediately
+    const emailPromise = require("../services/emailService")
+      .sendVerificationEmail(user.email, user.name, verificationCode)
+      .catch((err) => console.error("Async verification email error:", err));
+
+    // Wait up to 600ms so quick sends complete, but response is never delayed
+    await Promise.race([
+      emailPromise,
+      new Promise((resolve) => setTimeout(resolve, 600))
+    ]);
 
     const token = user.status === "active" ? generateToken(user._id, user.role) : null;
     res.status(201).json({
@@ -194,6 +202,63 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
+// ✅ RESEND VERIFICATION CODE
+exports.resendVerificationCode = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: trimmedEmail });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "No account found with this email" });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({ success: false, message: "Email is already verified. You can proceed to login." });
+    }
+
+    // Cooldown check: max 1 request every 45 seconds
+    if (user.emailVerificationExpires) {
+      const msRemaining = user.emailVerificationExpires.getTime() - Date.now();
+      const msElapsed = (20 * 60 * 1000) - msRemaining;
+      if (msElapsed < 45 * 1000 && msElapsed > 0) {
+        const waitSec = Math.ceil((45 * 1000 - msElapsed) / 1000);
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${waitSec}s before requesting a new code.`
+        });
+      }
+    }
+
+    const verificationCode = crypto.randomInt(100000, 1000000).toString();
+    const hashedCode = crypto.createHash("sha256").update(verificationCode).digest("hex");
+    const codeExpires = new Date(Date.now() + 20 * 60 * 1000); // 20 mins
+
+    user.emailVerificationCode = hashedCode;
+    user.emailVerificationExpires = codeExpires;
+    await user.save();
+
+    const emailPromise = require("../services/emailService")
+      .sendVerificationEmail(user.email, user.name, verificationCode)
+      .catch((err) => console.error("Resend verification email error:", err));
+
+    await Promise.race([
+      emailPromise,
+      new Promise((resolve) => setTimeout(resolve, 600))
+    ]);
+
+    res.json({
+      success: true,
+      message: "A new verification code has been sent to your email!"
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ✅ LOGIN USER
 exports.loginUser = async (req, res) => {
   try {
@@ -213,6 +278,15 @@ exports.loginUser = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "Invalid email or password" });
+    }
+
+    if (!user.isEmailVerified && user.status === "pending" && user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        isEmailUnverified: true,
+        email: user.email,
+        message: "Your email is not verified yet. Please verify your email with the code sent to your inbox.",
+      });
     }
 
     if (user.status !== "active") {
@@ -243,7 +317,12 @@ exports.loginUser = async (req, res) => {
           codeHash: hashOtp(otp),
           expiresAt: Date.now() + 5 * 60 * 1000,
         });
-        await sendTwoFactorCodeEmail(user.email, user.name, otp);
+        const emailPromise = sendTwoFactorCodeEmail(user.email, user.name, otp)
+          .catch(err => console.error("2FA send error:", err));
+        await Promise.race([
+          emailPromise,
+          new Promise(resolve => setTimeout(resolve, 800))
+        ]);
         return res.json({
           success: true,
           requires2FA: true,
