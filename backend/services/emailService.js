@@ -9,49 +9,67 @@ const createTransporter = async () => {
 
   const hasSmtpConfig = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
   if (hasSmtpConfig) {
+    const port = Number(process.env.SMTP_PORT) || 587;
+    const isSecure = process.env.SMTP_SECURE === 'true' || port === 465;
+
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
+      port,
+      secure: isSecure,
+      pool: true,
+      maxConnections: 3,
+      maxMessages: 100,
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 15000,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
+      },
+      tls: {
+        rejectUnauthorized: false
       }
     });
 
-    try {
-      await transporter.verify();
-      transporterMeta.isTest = false;
+    transporterMeta.isTest = false;
+    // Non-blocking verification in the background to never delay outgoing requests
+    transporter.verify().then(() => {
       console.log('SMTP is configured and verified. Using real email delivery.');
-      return transporter;
-    } catch (error) {
-      transporter = null;
-      console.error('SMTP verification failed. Please fix SMTP env values to send real email.', error);
-      throw new Error('SMTP configuration invalid or unreachable. Real email delivery failed.');
-    }
+    }).catch(err => {
+      console.warn('SMTP connection warning (will retry on send):', err.message);
+    });
+
+    return transporter;
   }
 
-  const account = await new Promise((resolve, reject) => {
-    nodemailer.createTestAccount((err, account) => {
-      if (err) return reject(err);
-      resolve(account);
+  try {
+    const account = await Promise.race([
+      new Promise((resolve, reject) => {
+        nodemailer.createTestAccount((err, acc) => {
+          if (err) return reject(err);
+          resolve(acc);
+        });
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Ethereal test account creation timed out')), 5000))
+    ]);
+
+    transporter = nodemailer.createTransport({
+      host: account.smtp.host,
+      port: account.smtp.port,
+      secure: account.smtp.secure,
+      auth: {
+        user: account.user,
+        pass: account.pass
+      }
     });
-  });
 
-  transporter = nodemailer.createTransport({
-    host: account.smtp.host,
-    port: account.smtp.port,
-    secure: account.smtp.secure,
-    auth: {
-      user: account.user,
-      pass: account.pass
-    }
-  });
-
-  transporterMeta.isTest = true;
-  console.log('Using Ethereal test account. Preview emails with nodemailer.getTestMessageUrl.');
-
-  return transporter;
+    transporterMeta.isTest = true;
+    console.log('Using Ethereal test account. Preview emails with nodemailer.getTestMessageUrl.');
+    return transporter;
+  } catch (testErr) {
+    console.warn('Could not initialize Ethereal test transport:', testErr.message);
+    return null;
+  }
 };
 
 const sendFoodAlertEmail = async (ngoEmail, ngoName, foodDetails) => {
@@ -109,50 +127,79 @@ const sendPasswordResetEmail = async (toEmail, toName, resetCode) => {
 };
 
 const sendTwoFactorCodeEmail = async (toEmail, toName, verificationCode) => {
-  const transport = await createTransporter();
-  if (!transport) return { previewUrl: null };
+  try {
+    const transport = await createTransporter();
+    if (!transport) {
+      console.warn(`Email transport not available for 2FA code to ${toEmail}`);
+      return { previewUrl: null };
+    }
 
-  const mailOptions = {
-    from: process.env.SMTP_FROM || '"MealBridge Admin" <adminmealbridge@gmail.com>',
-    to: toEmail,
-    subject: 'MealBridge Login Verification Code',
-    text: `Hello ${toName || 'User'},\n\nYour MealBridge verification code is:\n\n${verificationCode}\n\nThis code expires in 5 minutes. If you did not try to sign in, please ignore this email.\n\nThank you!`,
-    html: `
-      <h2>Hello ${toName || 'User'},</h2>
-      <p>Your MealBridge verification code is:</p>
-      <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px;">${verificationCode}</p>
-      <p>This code expires in 5 minutes. If you did not try to sign in, please ignore this email.</p>
-    `
-  };
+    const mailOptions = {
+      from: process.env.SMTP_FROM || '"MealBridge Security" <adminmealbridge@gmail.com>',
+      to: toEmail,
+      subject: 'MealBridge Login Verification Code',
+      text: `Hello ${toName || 'User'},\n\nYour MealBridge verification code is:\n\n${verificationCode}\n\nThis code expires in 5 minutes. If you did not try to sign in, please ignore this email.\n\nThank you!`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 16px; background: #ffffff; color: #1e293b;">
+          <h2 style="color: #0f766e; margin-top: 0; font-size: 22px; font-weight: 700;">MealBridge Security</h2>
+          <p style="font-size: 15px; color: #334155;">Hello <strong>${toName || 'User'}</strong>,</p>
+          <p style="font-size: 15px; color: #334155;">Use the verification code below to complete your login:</p>
+          <div style="background: #f0fdfa; border: 2px dashed #0d9488; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0;">
+            <span style="font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #0f766e; font-family: monospace;">${verificationCode}</span>
+          </div>
+          <p style="color: #64748b; font-size: 13px; line-height: 1.5;">This code expires in 5 minutes. If you did not try to sign in, please ignore this email or change your password.</p>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="color: #94a3b8; font-size: 12px; margin: 0;">MealBridge · Connecting surplus food to communities in need</p>
+        </div>
+      `
+    };
 
-  const info = await transport.sendMail(mailOptions);
-  const previewUrl = transporterMeta.isTest ? nodemailer.getTestMessageUrl(info) : null;
-  console.log(`2FA email sent to ${toEmail}. Preview URL: %s`, previewUrl);
-  return { previewUrl };
+    const info = await transport.sendMail(mailOptions);
+    const previewUrl = transporterMeta.isTest ? nodemailer.getTestMessageUrl(info) : null;
+    console.log(`2FA email sent to ${toEmail}. Preview URL: %s`, previewUrl);
+    return { success: true, previewUrl };
+  } catch (err) {
+    console.error(`Error sending 2FA email to ${toEmail}:`, err.message);
+    return { success: false, error: err.message };
+  }
 };
 
 const sendVerificationEmail = async (toEmail, toName, verificationCode) => {
-  const transport = await createTransporter();
-  if (!transport) return { previewUrl: null };
+  try {
+    const transport = await createTransporter();
+    if (!transport) {
+      console.warn(`Email transport not available for verification code to ${toEmail}`);
+      return { previewUrl: null };
+    }
 
-  const mailOptions = {
-    from: process.env.SMTP_FROM || '"MealBridge Admin" <adminmealbridge@gmail.com>',
-    to: toEmail,
-    subject: 'MealBridge Email Verification Code',
-    text: `Hello ${toName || 'User'},\n\nPlease verify your email address for your MealBridge account. Use the code below:\n\n${verificationCode}\n\nThis code expires in 20 minutes.\n\nThank you!`,
-    html: `
-      <h2>Hello ${toName || 'User'},</h2>
-      <p>Please verify your email address for your MealBridge account.</p>
-      <p><strong>Your verification code is:</strong></p>
-      <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px;">${verificationCode}</p>
-      <p>This code expires in 20 minutes.</p>
-    `
-  };
+    const mailOptions = {
+      from: process.env.SMTP_FROM || '"MealBridge Verification" <adminmealbridge@gmail.com>',
+      to: toEmail,
+      subject: 'MealBridge Email Verification Code',
+      text: `Hello ${toName || 'User'},\n\nPlease verify your email address for your MealBridge account. Use the code below:\n\n${verificationCode}\n\nThis code expires in 20 minutes.\n\nThank you!`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 16px; background: #ffffff; color: #1e293b;">
+          <h2 style="color: #15803d; margin-top: 0; font-size: 22px; font-weight: 700;">Welcome to MealBridge!</h2>
+          <p style="font-size: 15px; color: #334155;">Hello <strong>${toName || 'User'}</strong>,</p>
+          <p style="font-size: 15px; color: #334155;">Thank you for registering. Please enter the verification code below to verify your email address:</p>
+          <div style="background: #f0fdf4; border: 2px dashed #16a34a; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0;">
+            <span style="font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #15803d; font-family: monospace;">${verificationCode}</span>
+          </div>
+          <p style="color: #64748b; font-size: 13px; line-height: 1.5;">This verification code expires in 20 minutes. If you did not create a MealBridge account, you can safely ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="color: #94a3b8; font-size: 12px; margin: 0;">MealBridge · Connecting surplus food to communities in need</p>
+        </div>
+      `
+    };
 
-  const info = await transport.sendMail(mailOptions);
-  const previewUrl = transporterMeta.isTest ? nodemailer.getTestMessageUrl(info) : null;
-  console.log(`Verification email sent to ${toEmail}. Preview URL: %s`, previewUrl);
-  return { previewUrl };
+    const info = await transport.sendMail(mailOptions);
+    const previewUrl = transporterMeta.isTest ? nodemailer.getTestMessageUrl(info) : null;
+    console.log(`Verification email sent to ${toEmail}. Preview URL: %s`, previewUrl);
+    return { success: true, previewUrl };
+  } catch (err) {
+    console.error(`Error sending verification email to ${toEmail}:`, err.message);
+    return { success: false, error: err.message };
+  }
 };
 
 const sendReceiptEmail = async (toEmail, toName, receiptPath, subject = 'Your MealBridge Donation Receipt') => {
