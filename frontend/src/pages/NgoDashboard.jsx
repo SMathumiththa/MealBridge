@@ -211,7 +211,7 @@ function DashboardPage({ availableDonations, requests, onNav, user, fundDonation
         <StatCard icon="🏆" label="Completed" value={completed} color={COLORS.amberLight} sub="Pickups done" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 14, marginBottom: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 22 }}>
         <div>
           <Leaderboard />
         </div>
