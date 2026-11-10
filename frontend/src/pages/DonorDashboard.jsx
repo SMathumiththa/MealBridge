@@ -84,7 +84,7 @@ function DonorHome({ setActive, user, stats, recentDonations, ratingStats, theme
 
       <div style={{ marginBottom: 36 }}>
         <h3 style={{ color: panelText, fontSize: 18, fontWeight: 600, marginBottom: 16 }}>{t("common.quickActions")}</h3>
-        <div style={{ display: "flex", gap: 16, justifyContent: "center" }}>
+        <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
           <button onClick={() => setActive("donate")} style={{
             background: COLORS.amber, color: COLORS.forest, border: "none", borderRadius: 12,
             padding: "14px 28px", fontWeight: 700, fontSize: 16, cursor: "pointer", boxShadow: "0 4px 15px rgba(232,146,58,0.3)"
