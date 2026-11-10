@@ -1,13 +1,14 @@
 const express = require("express");
 const router = express.Router();
 
-const { registerUser, loginUser, getMe, updateProfile, updatePassword, updateDonationSettings, getLeaderboard, requestPasswordReset, resetPassword, verifyEmail, updateTwoFactorSetting } = require("../controllers/userController");
+const { registerUser, loginUser, getMe, updateProfile, updatePassword, updateDonationSettings, getLeaderboard, requestPasswordReset, resetPassword, verifyEmail, resendVerificationCode, updateTwoFactorSetting } = require("../controllers/userController");
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 const { upload } = require("../config/cloudinary");
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.post("/verify-email", verifyEmail);
+router.post("/resend-verification", resendVerificationCode);
 router.post("/request-password-reset", requestPasswordReset);
 router.post("/reset-password", resetPassword);
 router.get("/me", protect, getMe);
