@@ -465,6 +465,7 @@ export default function AdminDashboard({ theme = "dark" }) {
         {/* Animated Notification Bell Top Right */}
         <div 
           onClick={() => setPage("notifications")}
+          className="admin-bell-btn"
           style={{
             position: "absolute",
             top: 24,
@@ -531,7 +532,7 @@ export default function AdminDashboard({ theme = "dark" }) {
                   <StatCard icon="📍" label={t("common.totalRequests")} value={stats.totalRequests || 0} color="#7b68ee" sub={t("common.processed")} />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                <div className="admin-two-col-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                   <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, padding: "20px" }}>
                     <div style={{ fontWeight: 700, color: "white", marginBottom: 16 }}>{t("common.userBreakdown")}</div>
                     {[
@@ -560,7 +561,7 @@ export default function AdminDashboard({ theme = "dark" }) {
                   </div>
                 </div>
 
-                <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
+                <div className="admin-two-col-grid" style={{ marginTop: 24, display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
                   <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, padding: "20px" }}>
                     <div style={{ fontWeight: 700, color: "white", marginBottom: 16 }}>{t("common.foodDonationTrend")}</div>
                     <div style={{ width: '100%', height: 300 }}>
@@ -623,18 +624,18 @@ export default function AdminDashboard({ theme = "dark" }) {
           <div>
             <h2 style={{ color: "white", fontSize: 26, margin: "0 0 20px" }}>{t("common.userManagement")}</h2>
             
-            <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+            <div className="admin-filters-bar" style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
               <input 
                 type="text" 
                 placeholder="Search by name or email..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "white" }}
+                style={{ flex: "1 1 200px", padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "white" }}
               />
               <select 
                 value={roleFilter} 
                 onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
-                style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "white" }}
+                style={{ flex: "1 1 130px", padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "white" }}
               >
                 <option value="all">All Roles</option>
                 <option value="donor">Donors</option>
@@ -644,7 +645,7 @@ export default function AdminDashboard({ theme = "dark" }) {
               <select 
                 value={statusFilter} 
                 onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "white" }}
+                style={{ flex: "1 1 130px", padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "white" }}
               >
                 <option value="all">All Statuses</option>
                 <option value="active">Active</option>
@@ -656,56 +657,60 @@ export default function AdminDashboard({ theme = "dark" }) {
             {loading ? (
               <div style={{ textAlign: "center", padding: "40px", color: "rgba(255,255,255,0.7)" }}>Loading users...</div>
             ) : (
-              <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflow: "hidden" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "18% 12% 18% 12% 12% 12% 16%", gap: 0, padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, textAlign: "left" }}>
-                  <span>User</span><span>Role</span><span>Email</span><span>Email Status</span><span>Status</span><span>Joined</span><span>Actions</span>
-                </div>
-                {users.length > 0 ? users.map((u, i) => (
-                  <div key={u._id || i} style={{ display: "grid", gridTemplateColumns: "18% 12% 18% 12% 12% 12% 16%", gap: 0, padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center", textAlign: "left" }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "white", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{u.name}</span>
-                    <span style={{ fontSize: 12, color: roleColors[u.role?.toLowerCase()] || "white", fontWeight: 600, textTransform: "capitalize" }}>{u.role}</span>
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", marginRight: 10 }}>{u.email}</span>
-                    <span style={{ fontSize: 12, color: u.isEmailVerified ? COLORS.mint : "#e74c3c", fontWeight: 600 }}>{u.isEmailVerified ? "✅ Verified" : "❌ Unverified"}</span>
-                    <span style={{ fontSize: 12, color: statusColors[u.status?.toLowerCase()] || "white", fontWeight: 600, textTransform: "capitalize" }}>● {u.status || "active"}</span>
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{new Date(u.createdAt).toLocaleDateString()}</span>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        onClick={() => handleToggleSuspend(u)}
-                        disabled={u.role === "admin" || actionLoading === u._id}
-                        style={{
-                          padding: "6px 10px",
-                          fontSize: 11,
-                          background: u.role === "admin" ? "rgba(255,255,255,0.1)" : "rgba(255,165,0,0.2)",
-                          color: u.role === "admin" ? "rgba(255,255,255,0.3)" : COLORS.amber,
-                          border: `1px solid ${u.role === "admin" ? "transparent" : COLORS.amber}`,
-                          borderRadius: 6,
-                          cursor: u.role === "admin" ? "not-allowed" : "pointer",
-                          fontWeight: 600
-                        }}
-                      >
-                        {actionLoading === u._id ? "..." : (u.status !== "active" ? "Activate" : "Suspend")}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(u._id)}
-                        disabled={u.role === "admin" || actionLoading === u._id}
-                        style={{
-                          padding: "6px 10px",
-                          fontSize: 11,
-                          background: u.role === "admin" ? "rgba(255,255,255,0.1)" : "rgba(231,76,60,0.2)",
-                          color: u.role === "admin" ? "rgba(255,255,255,0.3)" : "#e74c3c",
-                          border: `1px solid ${u.role === "admin" ? "transparent" : "#e74c3c"}`,
-                          borderRadius: 6,
-                          cursor: u.role === "admin" ? "not-allowed" : "pointer",
-                          fontWeight: 600
-                        }}
-                      >
-                        {actionLoading === u._id ? "..." : "Delete"}
-                      </button>
-                    </div>
+              <div className="admin-table-scroll-container" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+                <div style={{ minWidth: 820 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "150px 100px 180px 120px 100px 110px 160px", gap: 0, padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, textAlign: "left" }}>
+                    <span>User</span><span>Role</span><span>Email</span><span>Email Status</span><span>Status</span><span>Joined</span><span>Actions</span>
                   </div>
-                )) : (
-                  <div style={{ padding: "20px", textAlign: "center", color: "rgba(255,255,255,0.4)" }}>No users found</div>
-                )}
+                  {users.length > 0 ? users.map((u, i) => (
+                    <div key={u._id || i} style={{ display: "grid", gridTemplateColumns: "150px 100px 180px 120px 100px 110px 160px", gap: 0, padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center", textAlign: "left" }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "white", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{u.name}</span>
+                      <span style={{ fontSize: 12, color: roleColors[u.role?.toLowerCase()] || "white", fontWeight: 600, textTransform: "capitalize" }}>{u.role}</span>
+                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", paddingRight: 10 }}>{u.email}</span>
+                      <span style={{ fontSize: 12, color: u.isEmailVerified ? COLORS.mint : "#e74c3c", fontWeight: 600, whiteSpace: "nowrap" }}>{u.isEmailVerified ? "✅ Verified" : "❌ Unverified"}</span>
+                      <span style={{ fontSize: 12, color: statusColors[u.status?.toLowerCase()] || "white", fontWeight: 600, textTransform: "capitalize", whiteSpace: "nowrap" }}>● {u.status || "active"}</span>
+                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", whiteSpace: "nowrap" }}>{new Date(u.createdAt).toLocaleDateString()}</span>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => handleToggleSuspend(u)}
+                          disabled={u.role === "admin" || actionLoading === u._id}
+                          style={{
+                            padding: "6px 10px",
+                            fontSize: 11,
+                            background: u.role === "admin" ? "rgba(255,255,255,0.1)" : "rgba(255,165,0,0.2)",
+                            color: u.role === "admin" ? "rgba(255,255,255,0.3)" : COLORS.amber,
+                            border: `1px solid ${u.role === "admin" ? "transparent" : COLORS.amber}`,
+                            borderRadius: 6,
+                            cursor: u.role === "admin" ? "not-allowed" : "pointer",
+                            fontWeight: 600,
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {actionLoading === u._id ? "..." : (u.status !== "active" ? "Activate" : "Suspend")}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(u._id)}
+                          disabled={u.role === "admin" || actionLoading === u._id}
+                          style={{
+                            padding: "6px 10px",
+                            fontSize: 11,
+                            background: u.role === "admin" ? "rgba(255,255,255,0.1)" : "rgba(231,76,60,0.2)",
+                            color: u.role === "admin" ? "rgba(255,255,255,0.3)" : "#e74c3c",
+                            border: `1px solid ${u.role === "admin" ? "transparent" : "#e74c3c"}`,
+                            borderRadius: 6,
+                            cursor: u.role === "admin" ? "not-allowed" : "pointer",
+                            fontWeight: 600,
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {actionLoading === u._id ? "..." : "Delete"}
+                        </button>
+                      </div>
+                    </div>
+                  )) : (
+                    <div style={{ padding: "20px", textAlign: "center", color: "rgba(255,255,255,0.4)" }}>No users found</div>
+                  )}
+                </div>
               </div>
             )}
             
@@ -794,71 +799,73 @@ export default function AdminDashboard({ theme = "dark" }) {
             {loading ? (
               <div style={{ textAlign: "center", padding: "40px", color: "rgba(255,255,255,0.7)" }}>Loading fund requests...</div>
             ) : fundRequests.length > 0 ? (
-              <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflow: "hidden" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "16% 12% 12% 10% 24% 6% 20%", gap: 0, padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, textAlign: "left" }}>
-                  <span>NGO Name</span><span>Purpose</span><span>Amount</span><span>Status</span><span>Documents</span><span>Details</span><span>Actions</span>
-                </div>
-                {fundRequests.map((r, i) => (
-                  <div key={r._id || i} style={{ display: "grid", gridTemplateColumns: "16% 12% 12% 10% 24% 6% 20%", gap: 0, padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center", textAlign: "left" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: "white", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                        {r.ngoId?.name || "Unknown"}
-                      </span>
-                    </div>
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", paddingRight: 10 }}>{r.purpose}</span>
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>LKR {r.amountNeeded}</span>
-                    <span style={{ fontSize: 12, color: r.status === "approved" ? COLORS.mint : r.status === "rejected" ? "#e74c3c" : COLORS.amber, fontWeight: 600, textTransform: "capitalize" }}>● {r.status}</span>
-                    <div style={{ fontSize: 14, display: "flex", flexDirection: "row", flexWrap: "nowrap", overflowX: "auto", gap: 8, fontWeight: 500, paddingBottom: 4 }}>
-                      {[
-                        ["needStatement", "Need Statement"],
-                        ["registrationCertificate", "Registration"],
-                        ["bankDetails", "Bank Details"],
-                        ["usageReport", "Usage Report"]
-                      ].map(([key, label]) => {
-                        const url = getDocumentUrl(r.documents?.[key]);
-                        return url ? (
-                          <button key={key} type="button" onClick={() => setViewDocUrl(url)} style={{ color: COLORS.mint, background: "rgba(46, 204, 113, 0.1)", border: "none", padding: "6px 12px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", cursor: "pointer" }}>
-                            📄 {label}
-                          </button>
-                        ) : null;
-                      })}
-                      {!r.documents?.needStatement && !r.documents?.registrationCertificate && !r.documents?.bankDetails && !r.documents?.usageReport && (
-                        <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>No documents uploaded</span>
-                      )}
-                    </div>
-                    <div>
-                      <button 
-                        onClick={() => setSelectedNgo(r.ngoId)}
-                        style={{ background: "rgba(126, 200, 160, 0.1)", border: "1px solid rgba(126, 200, 160, 0.3)", color: COLORS.mint, padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}
-                      >
-                        View
-                      </button>
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button 
-                        onClick={() => handleFundRequestStatus(r._id, "approved")}
-                        disabled={actionLoading === r._id || r.status !== "pending"}
-                        style={{ background: "rgba(46, 204, 113, 0.1)", border: "1px solid rgba(46, 204, 113, 0.3)", color: "#2ecc71", padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: r.status === "pending" ? "pointer" : "not-allowed", opacity: r.status === "pending" ? 1 : 0.5 }}
-                      >
-                        Approve
-                      </button>
-                      <button 
-                        onClick={() => handleFundRequestStatus(r._id, "rejected")}
-                        disabled={actionLoading === r._id || r.status !== "pending"}
-                        style={{ background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", color: "#e74c3c", padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: r.status === "pending" ? "pointer" : "not-allowed", opacity: r.status === "pending" ? 1 : 0.5 }}
-                      >
-                        Reject
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteFundRequest(r._id)}
-                        disabled={actionLoading === r._id}
-                        style={{ background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", color: "#e74c3c", padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: actionLoading === r._id ? "not-allowed" : "pointer" }}
-                      >
-                        Delete
-                      </button>
-                    </div>
+              <div className="admin-table-scroll-container" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+                <div style={{ minWidth: 840 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "140px 120px 100px 90px 180px 70px 140px", gap: 0, padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, textAlign: "left" }}>
+                    <span>NGO Name</span><span>Purpose</span><span>Amount</span><span>Status</span><span>Documents</span><span>Details</span><span>Actions</span>
                   </div>
-                ))}
+                  {fundRequests.map((r, i) => (
+                    <div key={r._id || i} style={{ display: "grid", gridTemplateColumns: "140px 120px 100px 90px 180px 70px 140px", gap: 0, padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center", textAlign: "left" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "white", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                          {r.ngoId?.name || "Unknown"}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", paddingRight: 10 }}>{r.purpose}</span>
+                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", whiteSpace: "nowrap" }}>LKR {r.amountNeeded}</span>
+                      <span style={{ fontSize: 12, color: r.status === "approved" ? COLORS.mint : r.status === "rejected" ? "#e74c3c" : COLORS.amber, fontWeight: 600, textTransform: "capitalize", whiteSpace: "nowrap" }}>● {r.status}</span>
+                      <div style={{ fontSize: 14, display: "flex", flexDirection: "row", flexWrap: "nowrap", overflowX: "auto", gap: 8, fontWeight: 500, paddingBottom: 4 }}>
+                        {[
+                          ["needStatement", "Need Statement"],
+                          ["registrationCertificate", "Registration"],
+                          ["bankDetails", "Bank Details"],
+                          ["usageReport", "Usage Report"]
+                        ].map(([key, label]) => {
+                          const url = getDocumentUrl(r.documents?.[key]);
+                          return url ? (
+                            <button key={key} type="button" onClick={() => setViewDocUrl(url)} style={{ color: COLORS.mint, background: "rgba(46, 204, 113, 0.1)", border: "none", padding: "6px 12px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", cursor: "pointer" }}>
+                              📄 {label}
+                            </button>
+                          ) : null;
+                        })}
+                        {!r.documents?.needStatement && !r.documents?.registrationCertificate && !r.documents?.bankDetails && !r.documents?.usageReport && (
+                          <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>No documents uploaded</span>
+                        )}
+                      </div>
+                      <div>
+                        <button 
+                          onClick={() => setSelectedNgo(r.ngoId)}
+                          style={{ background: "rgba(126, 200, 160, 0.1)", border: "1px solid rgba(126, 200, 160, 0.3)", color: COLORS.mint, padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}
+                        >
+                          View
+                        </button>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "nowrap" }}>
+                        <button 
+                          onClick={() => handleFundRequestStatus(r._id, "approved")}
+                          disabled={actionLoading === r._id || r.status !== "pending"}
+                          style={{ background: "rgba(46, 204, 113, 0.1)", border: "1px solid rgba(46, 204, 113, 0.3)", color: "#2ecc71", padding: "4px 8px", borderRadius: 6, fontSize: 11, cursor: r.status === "pending" ? "pointer" : "not-allowed", opacity: r.status === "pending" ? 1 : 0.5, whiteSpace: "nowrap" }}
+                        >
+                          Approve
+                        </button>
+                        <button 
+                          onClick={() => handleFundRequestStatus(r._id, "rejected")}
+                          disabled={actionLoading === r._id || r.status !== "pending"}
+                          style={{ background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", color: "#e74c3c", padding: "4px 8px", borderRadius: 6, fontSize: 11, cursor: r.status === "pending" ? "pointer" : "not-allowed", opacity: r.status === "pending" ? 1 : 0.5, whiteSpace: "nowrap" }}
+                        >
+                          Reject
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteFundRequest(r._id)}
+                          disabled={actionLoading === r._id}
+                          style={{ background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", color: "#e74c3c", padding: "4px 8px", borderRadius: 6, fontSize: 11, cursor: actionLoading === r._id ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <div style={{ textAlign: "center", padding: "40px", color: "rgba(255,255,255,0.5)" }}>No fund requests found.</div>
@@ -873,53 +880,55 @@ export default function AdminDashboard({ theme = "dark" }) {
             {loading ? (
               <div style={{ textAlign: "center", padding: "40px", color: "rgba(255,255,255,0.7)" }}>Loading food donations...</div>
             ) : donations.length > 0 ? (
-              <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflow: "hidden" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "20% 16% 14% 14% 8% 28%", gap: 0, padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, textAlign: "left" }}>
-                  <span>Food Item</span><span>Donor</span><span>Status</span><span>Posted Date</span><span>Details</span><span>Action</span>
-                </div>
-                {donations.map((d, i) => (
-                  <div key={d._id || i} style={{ display: "grid", gridTemplateColumns: "20% 16% 14% 14% 8% 28%", gap: 0, padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center", textAlign: "left" }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "white", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{d.foodName}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, paddingRight: 8, overflow: "hidden" }}>
-                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", fontWeight: 500 }}>
-                        {d.donor?.name || "Unknown"}
-                      </span>
-                    </div>
-                    <span style={{ fontSize: 12, color: d.adminStatus === "approved" ? COLORS.mint : d.adminStatus === "rejected" ? "#e74c3c" : COLORS.amber, fontWeight: 600, textTransform: "capitalize" }}>{d.adminStatus || "pending"}</span>
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{new Date(d.createdAt).toLocaleDateString()}</span>
-                    <div>
-                      <button
-                        onClick={() => setSelectedDonation(d)}
-                        style={{ background: "rgba(126, 200, 160, 0.1)", border: "1px solid rgba(126, 200, 160, 0.3)", color: COLORS.mint, padding: "3px 8px", borderRadius: 4, fontSize: 10, cursor: "pointer", fontWeight: 500 }}
-                      >
-                        View
-                      </button>
-                    </div>
-                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                      <button
-                        onClick={() => handleDonationAdminStatus(d._id, "approved")}
-                        disabled={actionLoading === d._id || d.adminStatus === "approved"}
-                        style={{ background: "rgba(46, 204, 113, 0.1)", border: "1px solid rgba(46, 204, 113, 0.3)", color: "#2ecc71", padding: "3px 8px", borderRadius: 4, fontSize: 10, cursor: d.adminStatus === "pending" ? "pointer" : "not-allowed", opacity: d.adminStatus === "pending" ? 1 : 0.5, fontWeight: 500 }}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleDonationAdminStatus(d._id, "rejected")}
-                        disabled={actionLoading === d._id || d.adminStatus === "rejected"}
-                        style={{ background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", color: "#e74c3c", padding: "3px 8px", borderRadius: 4, fontSize: 10, cursor: d.adminStatus === "pending" ? "pointer" : "not-allowed", opacity: d.adminStatus === "pending" ? 1 : 0.5, fontWeight: 500 }}
-                      >
-                        Reject
-                      </button>
-                      <button
-                        onClick={() => handleDeleteDonation(d._id)}
-                        disabled={actionLoading === d._id}
-                        style={{ background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", color: "#e74c3c", padding: "3px 8px", borderRadius: 4, fontSize: 10, cursor: "pointer", fontWeight: 500 }}
-                      >
-                        {actionLoading === d._id ? "..." : "Delete"}
-                      </button>
-                    </div>
+              <div className="admin-table-scroll-container" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+                <div style={{ minWidth: 720 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "150px 140px 100px 110px 70px 150px", gap: 0, padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, textAlign: "left" }}>
+                    <span>Food Item</span><span>Donor</span><span>Status</span><span>Posted Date</span><span>Details</span><span>Action</span>
                   </div>
-                ))}
+                  {donations.map((d, i) => (
+                    <div key={d._id || i} style={{ display: "grid", gridTemplateColumns: "150px 140px 100px 110px 70px 150px", gap: 0, padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center", textAlign: "left" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "white", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{d.foodName}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, paddingRight: 8, overflow: "hidden" }}>
+                        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", fontWeight: 500 }}>
+                          {d.donor?.name || "Unknown"}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: 12, color: d.adminStatus === "approved" ? COLORS.mint : d.adminStatus === "rejected" ? "#e74c3c" : COLORS.amber, fontWeight: 600, textTransform: "capitalize", whiteSpace: "nowrap" }}>{d.adminStatus || "pending"}</span>
+                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", whiteSpace: "nowrap" }}>{new Date(d.createdAt).toLocaleDateString()}</span>
+                      <div>
+                        <button
+                          onClick={() => setSelectedDonation(d)}
+                          style={{ background: "rgba(126, 200, 160, 0.1)", border: "1px solid rgba(126, 200, 160, 0.3)", color: COLORS.mint, padding: "4px 10px", borderRadius: 4, fontSize: 11, cursor: "pointer", fontWeight: 500, whiteSpace: "nowrap" }}
+                        >
+                          View
+                        </button>
+                      </div>
+                      <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "nowrap" }}>
+                        <button
+                          onClick={() => handleDonationAdminStatus(d._id, "approved")}
+                          disabled={actionLoading === d._id || d.adminStatus === "approved"}
+                          style={{ background: "rgba(46, 204, 113, 0.1)", border: "1px solid rgba(46, 204, 113, 0.3)", color: "#2ecc71", padding: "4px 8px", borderRadius: 4, fontSize: 11, cursor: d.adminStatus === "pending" ? "pointer" : "not-allowed", opacity: d.adminStatus === "pending" ? 1 : 0.5, fontWeight: 500, whiteSpace: "nowrap" }}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleDonationAdminStatus(d._id, "rejected")}
+                          disabled={actionLoading === d._id || d.adminStatus === "rejected"}
+                          style={{ background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", color: "#e74c3c", padding: "4px 8px", borderRadius: 4, fontSize: 11, cursor: d.adminStatus === "pending" ? "pointer" : "not-allowed", opacity: d.adminStatus === "pending" ? 1 : 0.5, fontWeight: 500, whiteSpace: "nowrap" }}
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDonation(d._id)}
+                          disabled={actionLoading === d._id}
+                          style={{ background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", color: "#e74c3c", padding: "4px 8px", borderRadius: 4, fontSize: 11, cursor: "pointer", fontWeight: 500, whiteSpace: "nowrap" }}
+                        >
+                          {actionLoading === d._id ? "..." : "Delete"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, padding: "24px", textAlign: "center", color: "rgba(255,255,255,0.4)" }}>
@@ -939,7 +948,7 @@ export default function AdminDashboard({ theme = "dark" }) {
                 {feedbacks.length > 0 && (
                   <div style={{ marginBottom: 32 }}>
                     <h3 style={{ color: COLORS.mint, marginBottom: 16 }}>Food Donation Feedbacks (NGOs rating Donors)</h3>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                    <div className="admin-two-col-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                       {feedbacks.map((f, i) => (
                         <div key={f._id || i} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, padding: "20px", display: "flex", flexDirection: "column", gap: 10 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -977,7 +986,7 @@ export default function AdminDashboard({ theme = "dark" }) {
                 {moneyFeedbacks.length > 0 && (
                   <div>
                     <h3 style={{ color: COLORS.amberLight, marginBottom: 16 }}>Fund Donation Feedbacks (Donors rating NGOs)</h3>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                    <div className="admin-two-col-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                       {moneyFeedbacks.map((m, i) => (
                         <div key={m._id || i} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, padding: "20px", display: "flex", flexDirection: "column", gap: 10 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1103,38 +1112,40 @@ export default function AdminDashboard({ theme = "dark" }) {
                   {/* Food Donations */}
                   <h3 style={{ color: COLORS.mint, marginBottom: 16 }}>Food Donations</h3>
                   {donations.length > 0 ? (
-                    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflow: "hidden", marginBottom: 32 }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "20% 15% 10% 10% 15% 15% 15%", gap: 0, padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, textAlign: "left" }}>
-                        <span>Food Item</span><span>Donor</span><span>Qty</span><span>Status</span><span>Posted</span><span>Admin Status</span><span>View</span>
-                      </div>
-                      {donations.map((d, i) => (
-                        <div key={d._id || i} style={{ display: "grid", gridTemplateColumns: "20% 15% 10% 10% 15% 15% 15%", gap: 0, padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center", textAlign: "left" }}>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: "white", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{d.foodName}</span>
-                          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", paddingRight: 10 }}>{d.donor?.name || "Unknown"}</span>
-                          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-                            <div>O: {d.originalQuantity || d.quantity}</div>
-                            <div style={{color: COLORS.mint, fontWeight: 600}}>R: {d.quantity}</div>
-                          </span>
-                          <span style={{ fontSize: 12, color: d.status === "pending" ? COLORS.amber : COLORS.mint, fontWeight: 600, textTransform: "capitalize" }}>● {d.status}</span>
-                          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{new Date(d.createdAt).toLocaleDateString()}</span>
-                          <span style={{ fontSize: 12, color: d.adminStatus === "approved" ? COLORS.mint : d.adminStatus === "rejected" ? "#e74c3c" : COLORS.amber, fontWeight: 600, textTransform: "capitalize" }}>● {d.adminStatus || "pending"}</span>
-                          <div style={{ display: "flex", gap: 4 }}>
-                            <button
-                              onClick={() => setSelectedDonation(d)}
-                              style={{ background: "rgba(126, 200, 160, 0.1)", border: "1px solid rgba(126, 200, 160, 0.3)", color: COLORS.mint, padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}
-                            >
-                              View
-                            </button>
-                            <button
-                              onClick={() => handleDeleteDonation(d._id)}
-                              disabled={actionLoading === d._id}
-                              style={{ background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", color: "#e74c3c", padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}
-                            >
-                              {actionLoading === d._id ? "..." : "Delete"}
-                            </button>
-                          </div>
+                    <div className="admin-table-scroll-container" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflowX: "auto", WebkitOverflowScrolling: "touch", marginBottom: 32 }}>
+                      <div style={{ minWidth: 780 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "160px 140px 90px 100px 100px 110px 120px", gap: 0, padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, textAlign: "left" }}>
+                          <span>Food Item</span><span>Donor</span><span>Qty</span><span>Status</span><span>Posted</span><span>Admin Status</span><span>View</span>
                         </div>
-                      ))}
+                        {donations.map((d, i) => (
+                          <div key={d._id || i} style={{ display: "grid", gridTemplateColumns: "160px 140px 90px 100px 100px 110px 120px", gap: 0, padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center", textAlign: "left" }}>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: "white", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{d.foodName}</span>
+                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", paddingRight: 10 }}>{d.donor?.name || "Unknown"}</span>
+                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", whiteSpace: "nowrap" }}>
+                              <div>O: {d.originalQuantity || d.quantity}</div>
+                              <div style={{color: COLORS.mint, fontWeight: 600}}>R: {d.quantity}</div>
+                            </span>
+                            <span style={{ fontSize: 12, color: d.status === "pending" ? COLORS.amber : COLORS.mint, fontWeight: 600, textTransform: "capitalize", whiteSpace: "nowrap" }}>● {d.status}</span>
+                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", whiteSpace: "nowrap" }}>{new Date(d.createdAt).toLocaleDateString()}</span>
+                            <span style={{ fontSize: 12, color: d.adminStatus === "approved" ? COLORS.mint : d.adminStatus === "rejected" ? "#e74c3c" : COLORS.amber, fontWeight: 600, textTransform: "capitalize", whiteSpace: "nowrap" }}>● {d.adminStatus || "pending"}</span>
+                            <div style={{ display: "flex", gap: 6, flexWrap: "nowrap" }}>
+                              <button
+                                onClick={() => setSelectedDonation(d)}
+                                style={{ background: "rgba(126, 200, 160, 0.1)", border: "1px solid rgba(126, 200, 160, 0.3)", color: COLORS.mint, padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" }}
+                              >
+                                View
+                              </button>
+                              <button
+                                onClick={() => handleDeleteDonation(d._id)}
+                                disabled={actionLoading === d._id}
+                                style={{ background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", color: "#e74c3c", padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" }}
+                              >
+                                {actionLoading === d._id ? "..." : "Delete"}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, padding: "24px", textAlign: "center", color: "rgba(255,255,255,0.4)", marginBottom: 32 }}>
@@ -1145,40 +1156,42 @@ export default function AdminDashboard({ theme = "dark" }) {
                   {/* Fund Donations */}
                   <h3 style={{ color: COLORS.amber, marginBottom: 16 }}>Fund Donations</h3>
                   {moneyDonations.length > 0 ? (
-                    <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflow: "hidden" }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "18% 24% 12% 12% 12% 12% 10%", gap: 0, padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, textAlign: "left" }}>
-                        <span>Donor</span><span>NGO Requested</span><span>Amount</span><span>Method</span><span>Status</span><span>Date</span><span>View</span>
-                      </div>
-                      {moneyDonations.map((md, i) => (
-                        <div key={md._id || i} style={{ display: "grid", gridTemplateColumns: "18% 24% 12% 12% 12% 12% 10%", gap: 0, padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center", textAlign: "left" }}>
-                          <span 
-                            style={{ fontSize: 14, fontWeight: 600, color: COLORS.amber, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", cursor: "pointer" }}
-                            onClick={() => setSelectedDonor(md.donorId)}
-                          >
-                            {md.donorId?.name || "Unknown"}
-                          </span>
-                          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", paddingRight: 10 }}>{md.moneyRequestId?.ngoId?.name || "Unknown NGO"}</span>
-                          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>LKR {md.amount}</span>
-                          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", textTransform: "capitalize" }}>{METHOD_LABELS[md.donationMethod] || md.donationMethod || "online"}{md.isRecurring ? " 🔁" : ""}</span>
-                          <span style={{ fontSize: 12, color: md.paymentStatus === "success" ? COLORS.mint : COLORS.amber, fontWeight: 600, textTransform: "capitalize" }}>● {md.paymentStatus}</span>
-                          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{new Date(md.createdAt).toLocaleDateString()}</span>
-                          <div style={{ display: "flex", gap: 4 }}>
-                            <button
-                              onClick={() => setSelectedMoneyDonation(md)}
-                              style={{ background: "rgba(232, 146, 58, 0.1)", border: "1px solid rgba(232, 146, 58, 0.3)", color: COLORS.amber, padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}
-                            >
-                              View
-                            </button>
-                            <button
-                              onClick={() => handleDeleteMoneyDonation(md._id)}
-                              disabled={actionLoading === md._id}
-                              style={{ background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", color: "#e74c3c", padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}
-                            >
-                              {actionLoading === md._id ? "..." : "Delete"}
-                            </button>
-                          </div>
+                    <div className="admin-table-scroll-container" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+                      <div style={{ minWidth: 780 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "140px 160px 100px 100px 90px 100px 120px", gap: 0, padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600, textAlign: "left" }}>
+                          <span>Donor</span><span>NGO Requested</span><span>Amount</span><span>Method</span><span>Status</span><span>Date</span><span>View</span>
                         </div>
-                      ))}
+                        {moneyDonations.map((md, i) => (
+                          <div key={md._id || i} style={{ display: "grid", gridTemplateColumns: "140px 160px 100px 100px 90px 100px 120px", gap: 0, padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", alignItems: "center", textAlign: "left" }}>
+                            <span 
+                              style={{ fontSize: 14, fontWeight: 600, color: COLORS.amber, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", cursor: "pointer" }}
+                              onClick={() => setSelectedDonor(md.donorId)}
+                            >
+                              {md.donorId?.name || "Unknown"}
+                            </span>
+                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", paddingRight: 10 }}>{md.moneyRequestId?.ngoId?.name || "Unknown NGO"}</span>
+                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", whiteSpace: "nowrap" }}>LKR {md.amount}</span>
+                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", textTransform: "capitalize", whiteSpace: "nowrap" }}>{METHOD_LABELS[md.donationMethod] || md.donationMethod || "online"}{md.isRecurring ? " 🔁" : ""}</span>
+                            <span style={{ fontSize: 12, color: md.paymentStatus === "success" ? COLORS.mint : COLORS.amber, fontWeight: 600, textTransform: "capitalize", whiteSpace: "nowrap" }}>● {md.paymentStatus}</span>
+                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", whiteSpace: "nowrap" }}>{new Date(md.createdAt).toLocaleDateString()}</span>
+                            <div style={{ display: "flex", gap: 6, flexWrap: "nowrap" }}>
+                              <button
+                                onClick={() => setSelectedMoneyDonation(md)}
+                                style={{ background: "rgba(232, 146, 58, 0.1)", border: "1px solid rgba(232, 146, 58, 0.3)", color: COLORS.amber, padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" }}
+                              >
+                                View
+                              </button>
+                              <button
+                                onClick={() => handleDeleteMoneyDonation(md._id)}
+                                disabled={actionLoading === md._id}
+                                style={{ background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", color: "#e74c3c", padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" }}
+                              >
+                                {actionLoading === md._id ? "..." : "Delete"}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 18, padding: "24px", textAlign: "center", color: "rgba(255,255,255,0.4)" }}>
