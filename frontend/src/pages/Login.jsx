@@ -15,6 +15,7 @@ export default function Login({ theme = "dark", isAdminPortal = false }) {
   const [role, setRole] = useState(isAdminMode ? "admin" : "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
   const [requires2FA, setRequires2FA] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const pageBg = isLight
@@ -106,6 +107,9 @@ export default function Login({ theme = "dark", isAdminPortal = false }) {
           (import.meta.env.PROD ? "/admin/" : "http://localhost:4174/");
       }
     } catch (err) {
+      if (err.response?.data?.isEmailUnverified) {
+        setUnverifiedEmail(err.response?.data?.email || email);
+      }
       setError(err.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
@@ -126,13 +130,13 @@ export default function Login({ theme = "dark", isAdminPortal = false }) {
     }}>
       <FloatingFood count={16} />
 
-      <div style={{
+      <div className="auth-card" style={{
         background: cardBg,
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
         border: cardBorder,
         borderRadius: "24px",
-        padding: "48px 40px",
+        padding: "clamp(24px, 5vw, 44px) clamp(16px, 5vw, 36px)",
         width: "100%",
         maxWidth: "460px",
         boxShadow: "0 24px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
@@ -150,7 +154,31 @@ export default function Login({ theme = "dark", isAdminPortal = false }) {
             </h2>
           </div>
 
-          {error && <p style={{ color: "#ffb3b3", fontSize: "14px", marginBottom: "20px", background: "rgba(255,0,0,0.1)", padding: "10px", borderRadius: "8px", border: "1px solid rgba(255,0,0,0.2)" }}>{error}</p>}
+          {error && (
+            <div style={{ marginBottom: "20px", background: "rgba(255,0,0,0.1)", padding: "12px 14px", borderRadius: "10px", border: "1px solid rgba(255,0,0,0.2)" }}>
+              <p style={{ color: "#ffb3b3", fontSize: "14px", margin: 0 }}>{error}</p>
+              {unverifiedEmail && (
+                <button
+                  type="button"
+                  onClick={() => navigate("/verify-email", { state: { email: unverifiedEmail } })}
+                  style={{
+                    marginTop: "10px",
+                    background: "#ed9647",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "8px 14px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    display: "inline-block"
+                  }}
+                >
+                  Verify Email Now →
+                </button>
+              )}
+            </div>
+          )}
 
           {!requires2FA ? (
             <>
