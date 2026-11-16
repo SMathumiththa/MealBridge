@@ -3,7 +3,11 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const { sendPasswordResetEmail, sendTwoFactorCodeEmail } = require("../services/emailService");
+const {
+  sendPasswordResetEmail,
+  sendTwoFactorCodeEmail,
+  sendVerificationEmail,
+} = require("../services/emailService");
 
 const pendingLoginAttempts = new Map();
 
@@ -19,7 +23,7 @@ exports.registerUser = async (req, res) => {
   try {
     const { name, email, password, role, phone, organization } = req.body;
 
-    const trimmedEmail = email ? email.trim() : "";
+    const trimmedEmail = email ? email.trim().toLowerCase() : "";
     const trimmedName = name ? name.trim() : "";
 
     if (!trimmedName || !trimmedEmail || !password) {
@@ -128,16 +132,13 @@ exports.registerUser = async (req, res) => {
       emailVerificationExpires: codeExpires,
     });
 
-    // Send verification email asynchronously so registration returns immediately
-    const emailPromise = require("../services/emailService")
-      .sendVerificationEmail(user.email, user.name, verificationCode)
-      .catch((err) => console.error("Async verification email error:", err));
-
-    // Wait up to 600ms so quick sends complete, but response is never delayed
-    await Promise.race([
-      emailPromise,
-      new Promise((resolve) => setTimeout(resolve, 600))
-    ]);
+    const emailResult = await sendVerificationEmail(user.email, user.name, verificationCode);
+    if (!emailResult.success) {
+      return res.status(503).json({
+        success: false,
+        message: "Your account was created, but the verification email could not be sent. Please configure a valid Gmail App Password in backend/.env, restart the backend, and use Resend code.",
+      });
+    }
 
     const token = user.status === "active" ? generateToken(user._id, user.role) : null;
     res.status(201).json({
@@ -168,7 +169,7 @@ exports.verifyEmail = async (req, res) => {
       return res.status(400).json({ success: false, message: "Email and verification code are required" });
     }
 
-    const trimmedEmail = email.trim();
+    const trimmedEmail = email.trim().toLowerCase();
     const user = await User.findOne({ email: trimmedEmail });
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
@@ -241,14 +242,13 @@ exports.resendVerificationCode = async (req, res) => {
     user.emailVerificationExpires = codeExpires;
     await user.save();
 
-    const emailPromise = require("../services/emailService")
-      .sendVerificationEmail(user.email, user.name, verificationCode)
-      .catch((err) => console.error("Resend verification email error:", err));
-
-    await Promise.race([
-      emailPromise,
-      new Promise((resolve) => setTimeout(resolve, 600))
-    ]);
+    const emailResult = await sendVerificationEmail(user.email, user.name, verificationCode);
+    if (!emailResult.success) {
+      return res.status(503).json({
+        success: false,
+        message: "The verification email could not be sent. Configure a valid Gmail App Password in backend/.env, restart the backend, and try Resend code again.",
+      });
+    }
 
     res.json({
       success: true,
@@ -317,12 +317,14 @@ exports.loginUser = async (req, res) => {
           codeHash: hashOtp(otp),
           expiresAt: Date.now() + 5 * 60 * 1000,
         });
-        const emailPromise = sendTwoFactorCodeEmail(user.email, user.name, otp)
-          .catch(err => console.error("2FA send error:", err));
-        await Promise.race([
-          emailPromise,
-          new Promise(resolve => setTimeout(resolve, 800))
-        ]);
+        const emailResult = await sendTwoFactorCodeEmail(user.email, user.name, otp);
+        if (!emailResult.success) {
+          pendingLoginAttempts.delete(pendingKey);
+          return res.status(503).json({
+            success: false,
+            message: "The login verification email could not be sent. Please try again later.",
+          });
+        }
         return res.json({
           success: true,
           requires2FA: true,
@@ -394,9 +396,15 @@ exports.requestPasswordReset = async (req, res) => {
       user.passwordResetExpires = new Date(Date.now() + 20 * 60 * 1000); // 20 minutes
       await user.save();
 
-      const { previewUrl } = await sendPasswordResetEmail(user.email, user.name, resetCode);
-      if (previewUrl) {
-        console.log(`[DEV ONLY] Password reset preview URL: ${previewUrl}`);
+      const emailResult = await sendPasswordResetEmail(user.email, user.name, resetCode);
+      if (!emailResult.success) {
+        return res.status(503).json({
+          success: false,
+          message: "The password reset email could not be sent. Please try again later.",
+        });
+      }
+      if (emailResult.previewUrl) {
+        console.log(`[DEV ONLY] Password reset preview URL: ${emailResult.previewUrl}`);
       }
     }
 
@@ -633,11 +641,3 @@ exports.updatePassword = async (req, res) => {
 
 // GET leaderboard by points
 exports.getLeaderboard = async (req, res) => {
-  try {
-    const role = req.query.role || 'donor';
-    const top = await User.find({ role }).select('name organization points badge profileImage totalDonations averageRating').sort({ points: -1 }).limit(10);
-    res.json({ success: true, data: top });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
