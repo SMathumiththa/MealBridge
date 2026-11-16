@@ -8,68 +8,38 @@ const createTransporter = async () => {
   if (transporter) return transporter;
 
   const hasSmtpConfig = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
-  if (hasSmtpConfig) {
-    const port = Number(process.env.SMTP_PORT) || 587;
-    const isSecure = process.env.SMTP_SECURE === 'true' || port === 465;
-
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      secure: isSecure,
-      pool: true,
-      maxConnections: 3,
-      maxMessages: 100,
-      connectionTimeout: 8000,
-      greetingTimeout: 8000,
-      socketTimeout: 15000,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      },
-      tls: {
-        rejectUnauthorized: false
-      }
-    });
-
-    transporterMeta.isTest = false;
-    // Non-blocking verification in the background to never delay outgoing requests
-    transporter.verify().then(() => {
-      console.log('SMTP is configured and verified. Using real email delivery.');
-    }).catch(err => {
-      console.warn('SMTP connection warning (will retry on send):', err.message);
-    });
-
-    return transporter;
+  if (!hasSmtpConfig) {
+    throw new Error('SMTP is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS in backend/.env.');
   }
 
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const isSecure = process.env.SMTP_SECURE === 'true' || port === 465;
+
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure: isSecure,
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 100,
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 15000,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS.replace(/\s+/g, '')
+    }
+  });
+
+  transporterMeta.isTest = false;
   try {
-    const account = await Promise.race([
-      new Promise((resolve, reject) => {
-        nodemailer.createTestAccount((err, acc) => {
-          if (err) return reject(err);
-          resolve(acc);
-        });
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Ethereal test account creation timed out')), 5000))
-    ]);
-
-    transporter = nodemailer.createTransport({
-      host: account.smtp.host,
-      port: account.smtp.port,
-      secure: account.smtp.secure,
-      auth: {
-        user: account.user,
-        pass: account.pass
-      }
-    });
-
-    transporterMeta.isTest = true;
-    console.log('Using Ethereal test account. Preview emails with nodemailer.getTestMessageUrl.');
-    return transporter;
-  } catch (testErr) {
-    console.warn('Could not initialize Ethereal test transport:', testErr.message);
-    return null;
+    await transporter.verify();
+  } catch (error) {
+    transporter = null;
+    throw error;
   }
+  console.log('SMTP is configured and verified. Using real email delivery.');
+  return transporter;
 };
 
 const sendFoodAlertEmail = async (ngoEmail, ngoName, foodDetails) => {
@@ -103,37 +73,35 @@ const sendFoodAlertEmail = async (ngoEmail, ngoName, foodDetails) => {
 };
 
 const sendPasswordResetEmail = async (toEmail, toName, resetCode) => {
-  const transport = await createTransporter();
-  if (!transport) return { previewUrl: null };
+  try {
+    const transport = await createTransporter();
+    const mailOptions = {
+      from: process.env.SMTP_FROM || '"MealBridge Admin" <adminmealbridge@gmail.com>',
+      to: toEmail,
+      subject: 'MealBridge Password Reset Code',
+      text: `Hello ${toName || 'User'},\n\nYou requested a password reset for your MealBridge account. Use the code below to reset your password:\n\n${resetCode}\n\nThis code expires in 20 minutes. If you did not request this, please ignore this email.\n\nThank you!`,
+      html: `
+        <h2>Hello ${toName || 'User'},</h2>
+        <p>You requested a password reset for your MealBridge account.</p>
+        <p><strong>Your reset code is:</strong></p>
+        <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px;">${resetCode}</p>
+        <p>This code expires in 20 minutes. If you did not request this, please ignore this email.</p>
+      `
+    };
 
-  const mailOptions = {
-    from: process.env.SMTP_FROM || '"MealBridge Admin" <adminmealbridge@gmail.com>',
-    to: toEmail,
-    subject: 'MealBridge Password Reset Code',
-    text: `Hello ${toName || 'User'},\n\nYou requested a password reset for your MealBridge account. Use the code below to reset your password:\n\n${resetCode}\n\nThis code expires in 20 minutes. If you did not request this, please ignore this email.\n\nThank you!`,
-    html: `
-      <h2>Hello ${toName || 'User'},</h2>
-      <p>You requested a password reset for your MealBridge account.</p>
-      <p><strong>Your reset code is:</strong></p>
-      <p style="font-size: 24px; font-weight: 700; letter-spacing: 4px;">${resetCode}</p>
-      <p>This code expires in 20 minutes. If you did not request this, please ignore this email.</p>
-    `
-  };
-
-  const info = await transport.sendMail(mailOptions);
-  const previewUrl = transporterMeta.isTest ? nodemailer.getTestMessageUrl(info) : null;
-  console.log(`Password reset email sent to ${toEmail}. Preview URL: %s`, previewUrl);
-  return { previewUrl };
+    const info = await transport.sendMail(mailOptions);
+    const previewUrl = transporterMeta.isTest ? nodemailer.getTestMessageUrl(info) : null;
+    console.log(`Password reset email sent to ${toEmail}. Preview URL: %s`, previewUrl);
+    return { success: true, previewUrl };
+  } catch (err) {
+    console.error(`Error sending password reset email to ${toEmail}:`, err.message);
+    return { success: false, error: err.message };
+  }
 };
 
 const sendTwoFactorCodeEmail = async (toEmail, toName, verificationCode) => {
   try {
     const transport = await createTransporter();
-    if (!transport) {
-      console.warn(`Email transport not available for 2FA code to ${toEmail}`);
-      return { previewUrl: null };
-    }
-
     const mailOptions = {
       from: process.env.SMTP_FROM || '"MealBridge Security" <adminmealbridge@gmail.com>',
       to: toEmail,
@@ -167,11 +135,6 @@ const sendTwoFactorCodeEmail = async (toEmail, toName, verificationCode) => {
 const sendVerificationEmail = async (toEmail, toName, verificationCode) => {
   try {
     const transport = await createTransporter();
-    if (!transport) {
-      console.warn(`Email transport not available for verification code to ${toEmail}`);
-      return { previewUrl: null };
-    }
-
     const mailOptions = {
       from: process.env.SMTP_FROM || '"MealBridge Verification" <adminmealbridge@gmail.com>',
       to: toEmail,
